@@ -1,0 +1,24 @@
+# node_modules, if in subfolder, is not ignored
+node_modules/
+bower_components/
+
+# dist
+dist/
+lib/
+coverage/
+
+# ignore 3rd party libs possibly included
+**/bootstrap.*.js
+**/bootstrap.js
+**/jquery.js
+**/jquery.*.js
+**/tether.js
+**/tether.*.js
+
+# conf files
+protractor.conf.js
+karma.conf.js
+
+# config files
+.eslintrc.js
+.prettierrc.js

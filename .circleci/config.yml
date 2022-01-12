@@ -1,0 +1,82 @@
+version: 2.1
+
+jobs:
+  # Lint job
+  lint:
+    working_directory: ~/repo
+    docker:
+      - image: csabasulyok/pnpm:14.17.6-alpine
+    steps:
+      - checkout
+
+      - restore_cache:
+          keys:
+          - v1-dependencies-{{ checksum "package.json" }}
+          # fallback to using the latest cache if no exact match is found
+          - v1-dependencies-
+
+      - run:
+          name: Install dependencies
+          command: pnpm i
+      - run:
+          name: Run linters
+          command: pnpm lint
+
+      - save_cache:
+          paths:
+            - node_modules
+          key: v1-dependencies-{{ checksum "package.json" }}
+
+      - persist_to_workspace:
+          root: ~/repo
+          paths:
+            - "."
+  
+  # Publish job
+  publish:
+    working_directory: ~/repo
+    docker:
+      - image: csabasulyok/pnpm:14.17.6-alpine
+    steps:
+      - checkout
+
+      - restore_cache:
+          keys:
+          - v1-dependencies-{{ checksum "package.json" }}
+          # fallback to using the latest cache if no exact match is found
+          - v1-dependencies-
+
+      - run:
+          name: Install dependencies
+          command: pnpm i
+      - run:
+          name: Build package
+          command: pnpm build
+      - run:
+          name: Publish to registry
+          command: pnpm publish
+
+      - save_cache:
+          paths:
+            - node_modules
+          key: v1-dependencies-{{ checksum "package.json" }}
+
+      - persist_to_workspace:
+          root: ~/repo
+          paths:
+            - "."
+  
+workflows:
+  lint:
+    jobs:
+      - lint
+  publish:
+    jobs:
+      - publish:
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
+
+              
