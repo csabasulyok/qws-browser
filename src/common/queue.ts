@@ -1,5 +1,5 @@
 import { PayloadQwsMessage } from './message';
-import { serializeMessage } from '../node/messageencode';
+import { serializeMessage } from '../browser/messageencode';
 import { Binary } from './discriminator';
 
 /**
@@ -40,9 +40,9 @@ export default class QwsMessageQueue {
     this.messages[idx] = data;
 
     this.numUnsentMessages += 1;
-    this.numUnsentBytes += data.length;
+    this.numUnsentBytes += data.size;
     this.numUnackMessages += 1;
-    this.numUnackBytes += data.length;
+    this.numUnackBytes += data.size;
 
     this.writeIdx += 1;
     return idx;
@@ -57,7 +57,7 @@ export default class QwsMessageQueue {
     const ret = this.messages[idx];
 
     this.numUnsentMessages -= 1;
-    this.numUnsentBytes -= ret.length;
+    this.numUnsentBytes -= ret.size;
     this.readIdx += 1;
     return [idx, ret];
   }
@@ -68,7 +68,7 @@ export default class QwsMessageQueue {
   acknowledge(idx: number): void {
     while (this.ackIdx <= idx) {
       this.numUnackMessages -= 1;
-      this.numUnackBytes -= this.messages[this.ackIdx].length;
+      this.numUnackBytes -= this.messages[this.ackIdx].size;
       delete this.messages[this.ackIdx];
       this.ackIdx += 1;
     }
@@ -81,7 +81,7 @@ export default class QwsMessageQueue {
     while (this.readIdx > idx) {
       this.readIdx -= 1;
       this.numUnsentMessages += 1;
-      this.numUnsentBytes += this.messages[this.readIdx].length;
+      this.numUnsentBytes += this.messages[this.readIdx].size;
     }
   }
 }

@@ -1,5 +1,4 @@
 import autoBind from 'auto-bind';
-import WebSocket from 'ws';
 
 import { Binary } from './discriminator';
 import {
@@ -12,7 +11,7 @@ import {
   QwsMessageExtraHeaders,
 } from './message';
 import WebSocketMessageQueue from './queue';
-import WrappedWebSocket from '../node/wrappedws';
+import WrappedWebSocket from '../browser/wrappedws';
 import { addQueryParamsToUrl } from './queryparser';
 
 const decodeErrorMessage = (event): string => {
@@ -267,7 +266,7 @@ export default class QWebSocket {
     if (this.queue.numUnsentMessages) {
       // pop a message
       const [idx, data] = this.queue.consume();
-      console.log(`${this.name}: Sending chunk ${idx} of size ${data.length}`);
+      console.log(`${this.name}: Sending chunk ${idx} of size ${data.size}`);
       this.wws.sendRaw(data);
       console.debug(`${this.name}: MQ decreased to size ${this.queue.numUnsentMessages} messages / ${this.queue.numUnsentBytes} bytes`);
       this.flush();
@@ -285,7 +284,7 @@ export default class QWebSocket {
     // encode into payload message based on body type
     let message: PayloadQwsMessage;
 
-    if (body instanceof Buffer) {
+    if (body instanceof Blob) {
       message = {
         headers: {
           type: 'bin',

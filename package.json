@@ -1,5 +1,5 @@
 {
-  "name": "qws",
+  "name": "qws-browser",
   "version": "1.0.0",
   "description": "Safe queueing with auto-reconnect for WebSockets",
   "author": "Csaba Sulyok <csaba.sulyok@gmail.com>",
@@ -26,16 +26,9 @@
     "example:expressqws": "nodemon examples/expressqws.ts"
   },
   "dependencies": {
-    "auto-bind": "^4.0.0",
-    "express": "^4.17.2",
-    "express-ws": "^5.0.2",
-    "ws": "^8.4.0"
+    "auto-bind": "^4.0.0"
   },
   "devDependencies": {
-    "@types/express": "^4.17.13",
-    "@types/express-ws": "^3.0.1",
-    "@types/node": "^16.7.1",
-    "@types/ws": "^8.2.2",
     "@typescript-eslint/eslint-plugin": "^4.29.3",
     "@typescript-eslint/parser": "^4.29.3",
     "eslint": "^7.32.0",
