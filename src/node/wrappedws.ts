@@ -23,9 +23,11 @@ export default class WrappedWebSocket {
   constructor(wsOrUrl: WebSocket | string) {
     this.callbacks = {};
 
-    this.ws = wsOrUrl instanceof WebSocket ? wsOrUrl : new WebSocket(wsOrUrl);
+    this.ws = wsOrUrl instanceof WebSocket || wsOrUrl?.constructor?.name === 'WebSocket' ? (wsOrUrl as WebSocket) : new WebSocket(wsOrUrl);
+
     this.ws.onmessage = async (event: MessageEvent) => {
       const message = await deserializeMessage(event.data as Buffer);
+      // console.log('WRAPPER received', message);
       const callback = this.callbacks[message.headers.type] as (msg: QwsMessage) => void;
       callback?.(message);
     };
@@ -88,12 +90,13 @@ export default class WrappedWebSocket {
    * Proxy methods
    */
   send(message: QwsMessage): void {
+    // console.log('WRAPPER sending', message);
     const data = serializeMessage(message);
     this.ws.send(data);
   }
 
   sendRaw(data: Binary): void {
-    console.log('Actual send', data.length);
+    // console.log('WRAPPER send raw', data.toString());
     this.ws.send(data);
   }
 

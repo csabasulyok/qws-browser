@@ -15,7 +15,19 @@ import WebSocketMessageQueue from './queue';
 import WrappedWebSocket from '../node/wrappedws';
 import { addQueryParamsToUrl } from './queryparser';
 
+const decodeErrorMessage = (event): string => {
+  if (event?.message) {
+    return event.message;
+  }
+  if (event) {
+    return event.toString();
+  }
+
+  return 'Unknown error';
+};
+
 type QWebSocketOptions = {
+  name?: string;
   extraConnectArgs?: Record<string, unknown>;
   wsReconnectNumTries?: number;
   wsReconnectIntervalMillis?: number;
@@ -39,30 +51,29 @@ export default class QWebSocket {
   ready: boolean;
 
   callbacks: {
-    onConnect?: () => void;
+    onConnect?: () => number;
     onBin?: (body: Binary, extraHeaders: QwsMessageExtraHeaders) => void;
     onJson?: (body: Record<string, unknown>, extraHeaders: QwsMessageExtraHeaders) => void;
-    onErroneousDisconnect?: () => void;
+    onErroneousDisconnect?: (message: string) => void;
     onError?: (message: string) => void;
     onClose?: () => void;
   };
 
   constructor(wsOrUrl: WebSocket | string, options: QWebSocketOptions = {}) {
     this.wsOrUrl = wsOrUrl;
-    const url = wsOrUrl instanceof WebSocket ? wsOrUrl.url : wsOrUrl;
-    this.name = url.split('\\').pop().split('/').pop();
     this.options = {
       ...defaultOpts,
       ...options,
     };
 
+    this.name = options.name || 'websocket';
     this.callbacks = {};
+
     this.queue = new WebSocketMessageQueue();
     this.reconnectionAttempts = 0;
     this.needed = true;
     this.wws = null;
     this.ready = false;
-
     autoBind(this);
 
     this.connect();
@@ -72,7 +83,7 @@ export default class QWebSocket {
    * Public callback assignments for client
    */
 
-  onConnect(callback: () => void): void {
+  onConnect(callback: () => number): void {
     this.callbacks.onConnect = callback;
   }
 
@@ -100,6 +111,7 @@ export default class QWebSocket {
    * Main logic
    */
 
+  // eslint-disable-next-line max-lines-per-function
   connect(): void {
     if (this.wws && this.wws.readyState <= 1) {
       return;
@@ -110,15 +122,16 @@ export default class QWebSocket {
     // timeout for too many reconnection attempts
     if (this.reconnectionAttempts > this.options.wsReconnectNumTries) {
       console.error(`${this.name}: Connection timed out, should re-connect entirely`);
-      this.callbacks.onError?.(`${this.name}: WS connection timeout, max tries exceeded`);
+      this.callbacks.onError?.(`WS connection timeout, max tries (${this.options.wsReconnectNumTries}) exceeded`);
       return;
     }
 
     /**
      * Actual WebSocket opening
      */
-    if (this.wsOrUrl instanceof WebSocket) {
-      this.wws = new WrappedWebSocket(this.wsOrUrl);
+    if (this.wsOrUrl instanceof WebSocket || this.wsOrUrl?.constructor?.name === 'WebSocket') {
+      const ws = this.wsOrUrl as WebSocket;
+      this.wws = new WrappedWebSocket(ws);
       // TODO what if this is a reconnect? No reconnection was attempted, it's just the old reference
     } else {
       const connectUrl = addQueryParamsToUrl(this.wsOrUrl, {
@@ -130,24 +143,37 @@ export default class QWebSocket {
 
     this.wws.onWsError((event) => {
       // ws error will prompt reconnection which can time out, don't reject instantly
-      console.error(`${this.name}: Error occurred`, event);
-      this.callbacks.onErroneousDisconnect?.();
+      const message = decodeErrorMessage(event);
+      console.error(`${this.name}: WS error occurred: ${message}`);
+      this.callbacks.onErroneousDisconnect?.(message);
     });
 
     this.wws.onWsOpen(() => {
       // flush if any messages in queue for it
       console.log(`${this.name}: Connection established after ${this.reconnectionAttempts} tries`);
       this.reconnectionAttempts = 0;
-      this.callbacks.onConnect?.();
+
+      // call post-connect method, this may give previously acked messages
+      const readyIdx = this.callbacks.onConnect?.() || 0;
+
+      // send back readiness ack
+      this.wws.send({
+        headers: {
+          type: 'ready',
+          readyIdx,
+        },
+      } as ReadyQwsMessage);
     });
 
     this.wws.onReady((message: ReadyQwsMessage) => {
-      // ready to send messages from given chunkIdx
-      const chunkIdx = Number(message.headers.ready);
-      console.log(`${this.name}: Socket ready to send from chunk ${chunkIdx}`);
-      this.queue.acknowledge(chunkIdx - 1);
-      this.queue.revert(chunkIdx);
+      // ready to send messages from given message index
+      const { readyIdx } = message.headers;
+      console.log(`${this.name}: Socket ready to send from chunk ${readyIdx}`);
+      // move queue cursors appropriately
+      this.queue.acknowledge(readyIdx - 1);
+      this.queue.revert(readyIdx);
       this.ready = true;
+      // flush messages
       this.flush();
     });
 
@@ -198,20 +224,21 @@ export default class QWebSocket {
     this.wws.onErr((message: ErrorQwsMessage) => {
       // handle error
       console.error(`${this.name}: Error occurred: ${message.headers.error}`);
-      this.callbacks.onError?.(`Video storage error: ${message.headers.error}`);
+      this.callbacks.onError?.(message.headers.error);
     });
 
     this.wws.onWsClose(() => {
       // if locally closed, needed should be false
       // if it's true, it means we lost the connection and should try to re-connect
+      const { wsReconnectIntervalMillis } = this.options;
       if (this.needed) {
-        console.log(`${this.name}: Closed pre-maturely, trying to reconnect after timeout...`);
-        setTimeout(() => this.connect(), this.options.wsReconnectIntervalMillis);
-        this.callbacks.onErroneousDisconnect?.();
+        console.log(`${this.name}: Closed pre-maturely, trying to reconnect after ${wsReconnectIntervalMillis}ms...`);
+        setTimeout(() => this.connect(), wsReconnectIntervalMillis);
+        this.callbacks.onErroneousDisconnect?.('Closed pre-maturely');
       } else if (this.queue.numUnackMessages) {
-        console.log(`${this.name}: Could be closed, but there are still messages in queue, reconnecting...`);
-        setTimeout(() => this.connect(), this.options.wsReconnectIntervalMillis);
-        this.callbacks.onErroneousDisconnect?.();
+        console.log(`${this.name}: Closed with messages still in queue, reconnecting in ${wsReconnectIntervalMillis}ms...`);
+        setTimeout(() => this.connect(), wsReconnectIntervalMillis);
+        this.callbacks.onErroneousDisconnect?.('Closed with messages still in queue');
       } else {
         console.log(`${this.name}: Closed correctly`);
         this.callbacks.onClose?.();

@@ -1,6 +1,9 @@
 import QWebSocket from '../src';
 
-const qws = new QWebSocket('ws://localhost:3000/');
+const qws = new QWebSocket('ws://localhost:3000/mypath', {
+  wsReconnectNumTries: 2,
+  wsReconnectIntervalMillis: 2000,
+});
 
 const interval = setInterval(() => {
   console.log('Sending some messages...');
@@ -14,8 +17,9 @@ const interval = setInterval(() => {
   });
 }, 5000);
 
-qws.onError((err: string) => {
-  console.error(err);
+qws.onError((message: string) => {
+  console.error('Error, disconnecting:', message);
+  process.exit(1);
 });
 
 qws.onClose(() => {

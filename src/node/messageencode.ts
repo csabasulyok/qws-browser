@@ -103,7 +103,7 @@ export function serializeMessage(message: QwsMessage): Buffer {
       bodyEncoded.copy(ret, 4 + headersEncoded.length, 0, bodyEncoded.length);
       break;
     case 'json':
-      ret.write(bodyEncoded, 4);
+      ret.write(bodyEncoded, 4 + headersEncoded.length);
       break;
     default:
   }

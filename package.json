@@ -21,8 +21,9 @@
     "build": "tsc -p tsconfig.build.json",
     "cb": "pnpm clean && pnpm build",
     "lint": "eslint 'src/**/*.{js,ts,jsx,tsx}' --quiet --fix",
-    "example:broadcaster": "node -r ts-node/register examples/broadcaster.ts",
-    "example:expressqws": "node -r ts-node/register examples/expressqws.ts"
+    "example:wsmessage": "nodemon examples/wsmessage.ts",
+    "example:broadcaster": "nodemon examples/broadcaster.ts",
+    "example:expressqws": "nodemon examples/expressqws.ts"
   },
   "dependencies": {
     "auto-bind": "^4.0.0",

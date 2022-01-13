@@ -15,11 +15,20 @@ export default function expressQws(app?: Express): QwsApplication {
 
   appWs.qws = (route, handler) => {
     appWs.ws(route, (ws: WebSocket, req?: Request) => {
-      const qws = new QWebSocket(ws);
-      handler(qws, req);
+      try {
+        const qws = new QWebSocket(ws, {
+          name: req.path,
+          wsReconnectNumTries: 1, // do not reconnect on server-side
+        });
+        handler(qws, req);
+        // re-emit open event, since original consumed by express-ws
+        ws.emit('open');
+      } catch (err) {
+        console.error(err);
+        throw err;
+      }
     });
   };
   appWs.qws.bind(appWs.qws);
-
   return appWs;
 }

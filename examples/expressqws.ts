@@ -8,9 +8,13 @@ app.use((_req, _res, next) => {
   next();
 });
 
-app.qws('/', (qws: QWebSocket) => {
+app.qws('/mypath', (qws: QWebSocket) => {
   qws.onJson((data: Record<string, unknown>, headers: Record<string, unknown>) => {
-    console.log(`> JSON ${headers} ${data}`);
+    console.log('> JSON', headers, data);
+  });
+
+  qws.onBin((data: Buffer, headers: Record<string, unknown>) => {
+    console.log('> BIN', headers, data.toString());
   });
 });
 

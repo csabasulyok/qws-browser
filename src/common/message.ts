@@ -68,10 +68,16 @@ export type JsonQwsMessage = {
 /**
  * Ready message
  * Sent back after successful connect, signalling we are ready to receive events
+ * Optionally contains a message index denoting how many messages we already have received previously
  */
 export type ReadyQwsMessage = {
   headers: QwsMessageExtraHeaders & {
     type: 'ready';
+
+    /**
+     * Message index we have already received previously that may be omitted.
+     */
+    readyIdx: number;
   };
 };
 
@@ -109,4 +115,4 @@ export type ErrorQwsMessage = {
  * Common names for WSQ message
  */
 export type PayloadQwsMessage = BinaryQwsMessage | JsonQwsMessage;
-export type QwsMessage = BinaryQwsMessage | JsonQwsMessage | AckQwsMessage | ErrorQwsMessage;
+export type QwsMessage = BinaryQwsMessage | JsonQwsMessage | ReadyQwsMessage | AckQwsMessage | ErrorQwsMessage;
