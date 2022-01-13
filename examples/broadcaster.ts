@@ -1,9 +1,7 @@
 import QWebSocket from '../src';
 
-const qws = new QWebSocket('ws://localhost:3000/mypath', {
-  reconnectNumTries: 2,
-  reconnectIntervalMillis: 2000,
-});
+const name = process.argv[2] || 'default';
+const qws = new QWebSocket(`ws://localhost:3000/mypath/${name}`);
 
 const interval = setInterval(() => {
   console.log('Sending some messages...');

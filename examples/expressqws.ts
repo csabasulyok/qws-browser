@@ -8,7 +8,7 @@ app.use((_req, _res, next) => {
   next();
 });
 
-app.qws('/mypath', (qws: QWebSocket) => {
+app.qws('/mypath/:name', (qws: QWebSocket) => {
   qws.onJson((data: Record<string, unknown>, headers: Record<string, unknown>) => {
     console.log('> JSON', headers, data);
   });
