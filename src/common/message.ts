@@ -5,6 +5,8 @@
  * - remaining bytes: actual body - could be binary or base64(json), denoted in headers
  */
 
+import { Binary } from './discriminator';
+
 /**
  * Denotes message type, must be included in header.
  * 'bin' - payload message with binary body
@@ -13,12 +15,12 @@
  * 'ack' - acknowledgment message for a payload message received from other side
  * 'err' - error
  */
-export type WsqMessageType = 'bin' | 'json' | 'ready' | 'ack' | 'err';
+export type QwsMessageType = 'bin' | 'json' | 'ready' | 'ack' | 'err';
 
 /**
  * Headers are sent in base64(json) format.
  */
-export type WsqMessageExtraHeaders = {
+export type QwsMessageExtraHeaders = {
   /**
    * Other X-headers
    */
@@ -33,8 +35,8 @@ export type WsqMessageExtraHeaders = {
  * Binary payload messages
  * Contain binary body (like video data)
  */
-export type BinaryWsqMessage = {
-  headers: WsqMessageExtraHeaders & {
+export type BinaryQwsMessage = {
+  headers: QwsMessageExtraHeaders & {
     type: 'bin';
 
     /**
@@ -43,15 +45,15 @@ export type BinaryWsqMessage = {
     idx: number;
   };
 
-  body: Blob;
+  body: Binary;
 };
 
 /**
  * JSON payload message
  * Contain base64-JSON encoded data
  */
-export type JsonWsqMessage = {
-  headers: WsqMessageExtraHeaders & {
+export type JsonQwsMessage = {
+  headers: QwsMessageExtraHeaders & {
     type: 'json';
 
     /**
@@ -67,8 +69,8 @@ export type JsonWsqMessage = {
  * Ready message
  * Sent back after successful connect, signalling we are ready to receive events
  */
-export type ReadyWsqMessage = {
-  headers: WsqMessageExtraHeaders & {
+export type ReadyQwsMessage = {
+  headers: QwsMessageExtraHeaders & {
     type: 'ready';
   };
 };
@@ -77,7 +79,7 @@ export type ReadyWsqMessage = {
  * Acknowledgment message
  * Sent back for every payload message
  */
-export type AckWsqMessage = {
+export type AckQwsMessage = {
   headers: {
     type: 'ack';
 
@@ -92,7 +94,7 @@ export type AckWsqMessage = {
  * Error message
  * Sent back if processing a message is unsuccessful
  */
-export type ErrorWsqMessage = {
+export type ErrorQwsMessage = {
   headers: {
     type: 'err';
 
@@ -106,5 +108,5 @@ export type ErrorWsqMessage = {
 /**
  * Common names for WSQ message
  */
-export type PayloadWsqMessage = BinaryWsqMessage | JsonWsqMessage;
-export type WsqMessage = BinaryWsqMessage | JsonWsqMessage | AckWsqMessage | ErrorWsqMessage;
+export type PayloadQwsMessage = BinaryQwsMessage | JsonQwsMessage;
+export type QwsMessage = BinaryQwsMessage | JsonQwsMessage | AckQwsMessage | ErrorQwsMessage;

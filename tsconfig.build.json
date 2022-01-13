@@ -4,6 +4,6 @@
     "rootDir": "./src"
   },
   "exclude": [
-    "test/**/*.ts"
+    "examples/**/*.ts"
   ]
 }

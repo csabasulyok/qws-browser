@@ -1,13 +1,14 @@
-import { PayloadWsqMessage } from './message';
-import { serializeMessage } from '../browser/messageencode';
+import { PayloadQwsMessage } from './message';
+import { serializeMessage } from '../node/messageencode';
+import { Binary } from './discriminator';
 
 /**
- * FIFO data structure implementation for outgoing wsq messages
+ * FIFO data structure implementation for outgoing qws messages
  * Implements acknowledgment system, so no messages are deleted until acknowledged,
  * but new messages may be added while waiting for ack.
  */
-export default class WsqMessageQueue {
-  messages: Record<number, Blob>;
+export default class QwsMessageQueue {
+  messages: Record<number, Binary>;
   readIdx: number;
   ackIdx: number;
   writeIdx: number;
@@ -32,16 +33,16 @@ export default class WsqMessageQueue {
   /**
    * Push message to write end of queue
    */
-  produce(message: PayloadWsqMessage): number {
+  produce(message: PayloadQwsMessage): number {
     const idx = this.writeIdx;
     message.headers.idx = idx;
     const data = serializeMessage(message);
     this.messages[idx] = data;
 
     this.numUnsentMessages += 1;
-    this.numUnsentBytes += data.size;
+    this.numUnsentBytes += data.length;
     this.numUnackMessages += 1;
-    this.numUnackBytes += data.size;
+    this.numUnackBytes += data.length;
 
     this.writeIdx += 1;
     return idx;
@@ -51,12 +52,12 @@ export default class WsqMessageQueue {
    * Pop message from read end of queue.
    * Returns idx of message, along with its content.
    */
-  consume(): [number, Blob] {
+  consume(): [number, Binary] {
     const idx = this.readIdx;
     const ret = this.messages[idx];
 
     this.numUnsentMessages -= 1;
-    this.numUnsentBytes -= ret.size;
+    this.numUnsentBytes -= ret.length;
     this.readIdx += 1;
     return [idx, ret];
   }
@@ -67,7 +68,7 @@ export default class WsqMessageQueue {
   acknowledge(idx: number): void {
     while (this.ackIdx <= idx) {
       this.numUnackMessages -= 1;
-      this.numUnackBytes -= this.messages[this.ackIdx].size;
+      this.numUnackBytes -= this.messages[this.ackIdx].length;
       delete this.messages[this.ackIdx];
       this.ackIdx += 1;
     }
@@ -80,7 +81,7 @@ export default class WsqMessageQueue {
     while (this.readIdx > idx) {
       this.readIdx -= 1;
       this.numUnsentMessages += 1;
-      this.numUnsentBytes += this.messages[this.readIdx].size;
+      this.numUnsentBytes += this.messages[this.readIdx].length;
     }
   }
 }

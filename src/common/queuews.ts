@@ -1,15 +1,19 @@
 import autoBind from 'auto-bind';
+import WebSocket from 'ws';
+
+import { Binary } from './discriminator';
 import {
-  AckWsqMessage,
-  BinaryWsqMessage,
-  ErrorWsqMessage,
-  JsonWsqMessage,
-  PayloadWsqMessage,
-  ReadyWsqMessage,
-  WsqMessageExtraHeaders,
-} from '../common/message';
-import WebSocketMessageQueue from '../common/queue';
-import WrappedWebSocket from './wrappedws';
+  AckQwsMessage,
+  BinaryQwsMessage,
+  ErrorQwsMessage,
+  JsonQwsMessage,
+  PayloadQwsMessage,
+  ReadyQwsMessage,
+  QwsMessageExtraHeaders,
+} from './message';
+import WebSocketMessageQueue from './queue';
+import WrappedWebSocket from '../node/wrappedws';
+import { addQueryParamsToUrl } from './queryparser';
 
 type QWebSocketOptions = {
   extraConnectArgs?: Record<string, unknown>;
@@ -24,7 +28,7 @@ const defaultOpts: Partial<QWebSocketOptions> = {
 };
 
 export default class QWebSocket {
-  url: string;
+  wsOrUrl: WebSocket | string;
   name: string;
   options: QWebSocketOptions;
 
@@ -35,21 +39,24 @@ export default class QWebSocket {
   ready: boolean;
 
   callbacks: {
-    onConnect: () => void;
-    onBin: (body: Blob, extraHeaders: WsqMessageExtraHeaders) => void;
-    onJson: (body: Record<string, unknown>, extraHeaders: WsqMessageExtraHeaders) => void;
-    onErroneousDisconnect: () => void;
-    onError: (message: string) => void;
-    onFinish: () => void;
+    onConnect?: () => void;
+    onBin?: (body: Binary, extraHeaders: QwsMessageExtraHeaders) => void;
+    onJson?: (body: Record<string, unknown>, extraHeaders: QwsMessageExtraHeaders) => void;
+    onErroneousDisconnect?: () => void;
+    onError?: (message: string) => void;
+    onClose?: () => void;
   };
 
-  constructor(url: string, options: QWebSocketOptions = {}) {
+  constructor(wsOrUrl: WebSocket | string, options: QWebSocketOptions = {}) {
+    this.wsOrUrl = wsOrUrl;
+    const url = wsOrUrl instanceof WebSocket ? wsOrUrl.url : wsOrUrl;
     this.name = url.split('\\').pop().split('/').pop();
     this.options = {
       ...defaultOpts,
       ...options,
     };
 
+    this.callbacks = {};
     this.queue = new WebSocketMessageQueue();
     this.reconnectionAttempts = 0;
     this.needed = true;
@@ -57,6 +64,8 @@ export default class QWebSocket {
     this.ready = false;
 
     autoBind(this);
+
+    this.connect();
   }
 
   /**
@@ -67,11 +76,11 @@ export default class QWebSocket {
     this.callbacks.onConnect = callback;
   }
 
-  onBin(callback: (body: Blob, extraHeaders: WsqMessageExtraHeaders) => void): void {
+  onBin(callback: (body: Binary, extraHeaders: QwsMessageExtraHeaders) => void): void {
     this.callbacks.onBin = callback;
   }
 
-  onJson(callback: (body: Record<string, unknown>, extraHeaders: WsqMessageExtraHeaders) => void): void {
+  onJson(callback: (body: Record<string, unknown>, extraHeaders: QwsMessageExtraHeaders) => void): void {
     this.callbacks.onJson = callback;
   }
 
@@ -83,8 +92,8 @@ export default class QWebSocket {
     this.callbacks.onError = callback;
   }
 
-  onFinish(callback: () => void): void {
-    this.callbacks.onFinish = callback;
+  onClose(callback: () => void): void {
+    this.callbacks.onClose = callback;
   }
 
   /**
@@ -108,10 +117,16 @@ export default class QWebSocket {
     /**
      * Actual WebSocket opening
      */
-    this.wws = new WrappedWebSocket(this.url, {
-      ...this.options.extraConnectArgs,
-      idx: this.queue.ackIdx,
-    });
+    if (this.wsOrUrl instanceof WebSocket) {
+      this.wws = new WrappedWebSocket(this.wsOrUrl);
+      // TODO what if this is a reconnect? No reconnection was attempted, it's just the old reference
+    } else {
+      const connectUrl = addQueryParamsToUrl(this.wsOrUrl, {
+        ...this.options.extraConnectArgs,
+        idx: this.queue.ackIdx,
+      });
+      this.wws = new WrappedWebSocket(connectUrl);
+    }
 
     this.wws.onWsError((event) => {
       // ws error will prompt reconnection which can time out, don't reject instantly
@@ -126,7 +141,7 @@ export default class QWebSocket {
       this.callbacks.onConnect?.();
     });
 
-    this.wws.onReady((message: ReadyWsqMessage) => {
+    this.wws.onReady((message: ReadyQwsMessage) => {
       // ready to send messages from given chunkIdx
       const chunkIdx = Number(message.headers.ready);
       console.log(`${this.name}: Socket ready to send from chunk ${chunkIdx}`);
@@ -136,7 +151,7 @@ export default class QWebSocket {
       this.flush();
     });
 
-    this.wws.onBin((message: BinaryWsqMessage) => {
+    this.wws.onBin((message: BinaryQwsMessage) => {
       // received binary message
       const { headers, body } = message;
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -151,10 +166,10 @@ export default class QWebSocket {
           type: 'ack',
           ackIdx: idx,
         },
-      } as AckWsqMessage);
+      } as AckQwsMessage);
     });
 
-    this.wws.onJson((message: JsonWsqMessage) => {
+    this.wws.onJson((message: JsonQwsMessage) => {
       // received binary message
       const { headers, body } = message;
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -169,10 +184,10 @@ export default class QWebSocket {
           type: 'ack',
           ackIdx: idx,
         },
-      } as AckWsqMessage);
+      } as AckQwsMessage);
     });
 
-    this.wws.onAck((message: AckWsqMessage) => {
+    this.wws.onAck((message: AckQwsMessage) => {
       // acknowledgment received
       this.queue.acknowledge(message.headers.ackIdx);
       if (!this.queue.numUnackMessages && !this.needed) {
@@ -180,7 +195,7 @@ export default class QWebSocket {
       }
     });
 
-    this.wws.onErr((message: ErrorWsqMessage) => {
+    this.wws.onErr((message: ErrorQwsMessage) => {
       // handle error
       console.error(`${this.name}: Error occurred: ${message.headers.error}`);
       this.callbacks.onError?.(`Video storage error: ${message.headers.error}`);
@@ -199,7 +214,7 @@ export default class QWebSocket {
         this.callbacks.onErroneousDisconnect?.();
       } else {
         console.log(`${this.name}: Closed correctly`);
-        this.callbacks.onFinish?.();
+        this.callbacks.onClose?.();
       }
     });
   }
@@ -214,7 +229,7 @@ export default class QWebSocket {
     if (this.queue.numUnsentMessages) {
       // pop a message
       const [idx, data] = this.queue.consume();
-      console.log(`${this.name}: Sending chunk ${idx} of size ${data.size}`);
+      console.log(`${this.name}: Sending chunk ${idx} of size ${data.length}`);
       this.wws.sendRaw(data);
       console.debug(`${this.name}: MQ decreased to size ${this.queue.numUnsentMessages} messages / ${this.queue.numUnsentBytes} bytes`);
       this.flush();
@@ -228,18 +243,18 @@ export default class QWebSocket {
     }
   }
 
-  send(body: Blob | Record<string, unknown>, extraHeaders: WsqMessageExtraHeaders = {}): number {
+  send(body: Binary | Record<string, unknown>, extraHeaders: QwsMessageExtraHeaders = {}): number {
     // encode into payload message based on body type
-    let message: PayloadWsqMessage;
+    let message: PayloadQwsMessage;
 
-    if (body instanceof Blob) {
+    if (body instanceof Buffer) {
       message = {
         headers: {
           type: 'bin',
           ...extraHeaders,
         },
         body,
-      } as BinaryWsqMessage;
+      } as BinaryQwsMessage;
     } else {
       message = {
         headers: {
@@ -247,7 +262,7 @@ export default class QWebSocket {
           ...extraHeaders,
         },
         body,
-      } as JsonWsqMessage;
+      } as JsonQwsMessage;
     }
 
     // add message to fifo queue

@@ -35,7 +35,7 @@
   },
   "include": [
     "src/**/*.ts",
-    "test/**/*.ts",
+    "examples/**/*.ts",
     "typings.d.ts",
   ],
   "exclude": [

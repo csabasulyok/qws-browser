@@ -1,3 +1,13 @@
+// parse query parameters from URL
+export const parseUrl = (urlString: string): Record<string, string> => {
+  const url = new URL(urlString);
+  const query = {};
+  [...url.searchParams.entries()].forEach(([key, val]) => {
+    query[key] = val;
+  });
+  return query;
+};
+
 // parse query parameters from location
 export const parseQuery = (search: string): Record<string, string> => {
   const params = new URLSearchParams(search);
@@ -6,6 +16,17 @@ export const parseQuery = (search: string): Record<string, string> => {
     query[key] = val;
   });
   return query;
+};
+
+// parse query parameters from URL
+export const addQueryParamsToUrl = (urlString: string, params: Record<string, unknown>): string => {
+  const url = new URL(urlString);
+
+  Object.entries(params).forEach(([key, val]) => {
+    url.searchParams[key] = val;
+  });
+
+  return url.toString();
 };
 
 // add extra query parameters to location

@@ -1,4 +1,4 @@
-import { WsqMessage, BinaryWsqMessage, JsonWsqMessage } from '../common/message';
+import { QwsMessage, BinaryQwsMessage, JsonQwsMessage } from '../common/message';
 
 /**
  * Converts generic object into base64-encoded JSON.
@@ -13,8 +13,8 @@ function objectToJsonBinary(object: Record<string, unknown>): string {
  * Deserializes base64-json buffers
  * Used in headers and optionally JSON-style body.
  */
-async function jsonBinaryToObject(jsonBlob: Buffer): Record<string, unknown> {
-  const objectJson = Buffer.from(jsonBlob.toString(), 'base64').toString();
+function jsonBinaryToObject(jsonBinary: Buffer): Record<string, unknown> {
+  const objectJson = Buffer.from(jsonBinary.toString(), 'base64').toString();
   return JSON.parse(objectJson);
 }
 
@@ -22,13 +22,13 @@ async function jsonBinaryToObject(jsonBlob: Buffer): Record<string, unknown> {
  * Convert blob received through underlying WS into WSQ message
  * Changes type based on type header
  */
-export async function deserializeMessage(buffer: Buffer): Promise<WsqMessage> {
+export async function deserializeMessage(buffer: Buffer): Promise<QwsMessage> {
   if (buffer.length < 4) {
     console.error('Invalid buffer size');
     return {
       headers: { type: 'bin' },
       body: buffer,
-    } as BinaryWsqMessage;
+    } as BinaryQwsMessage;
   }
 
   // take first 4 bytes from header, check if not a too large size
@@ -38,7 +38,7 @@ export async function deserializeMessage(buffer: Buffer): Promise<WsqMessage> {
     return {
       headers: { type: 'bin' },
       body: buffer,
-    } as BinaryWsqMessage;
+    } as BinaryQwsMessage;
   }
 
   try {
@@ -60,48 +60,21 @@ export async function deserializeMessage(buffer: Buffer): Promise<WsqMessage> {
       default:
     }
 
-    return { headers, body } as WsqMessage;
+    return { headers, body } as QwsMessage;
   } catch (ex) {
     console.error(`Could not decode message: ${ex}`);
     console.error(ex);
     return {
       headers: { type: 'bin' },
       body: buffer,
-    } as BinaryWsqMessage;
-  }
-
-  try {
-    // decode base64-JSON header
-    const headers = await jsonBinaryToObject(blob.slice(4, headersSize + 4));
-    const bodyBlob = blob.slice(headersSize + 4);
-    const type = headers.type || 'bin';
-
-    // body is either JSON Blob, original binary data or nothing
-    let body: Blob | Record<string, unknown>;
-    switch (type) {
-      case 'bin':
-        body = bodyBlob;
-        break;
-      case 'json':
-        body = await jsonBinaryToObject(bodyBlob);
-        break;
-      default:
-    }
-
-    return { headers, body } as WsqMessage;
-  } catch (ex) {
-    console.error('Could not decode message', ex);
-    return {
-      headers: { type: 'bin' },
-      body: blob,
-    } as BinaryWsqMessage;
+    } as BinaryQwsMessage;
   }
 }
 
 /**
  * Converts WSQ message into Blob to be sent through underlying WebSocket
  */
-export function serializeMessage(message: WsqMessage): Buffer {
+export function serializeMessage(message: QwsMessage): Buffer {
   // headers encoded into base64(json)
   const headersEncoded = objectToJsonBinary(message.headers);
 
@@ -111,11 +84,11 @@ export function serializeMessage(message: WsqMessage): Buffer {
 
   switch (message.headers.type) {
     case 'bin':
-      bodyEncoded = (message as BinaryWsqMessage).body;
+      bodyEncoded = (message as BinaryQwsMessage).body;
       finalLength += bodyEncoded.length;
       break;
     case 'json':
-      bodyEncoded = objectToJsonBinary((message as JsonWsqMessage).body);
+      bodyEncoded = objectToJsonBinary((message as JsonQwsMessage).body);
       finalLength += bodyEncoded.length;
       break;
     default:
