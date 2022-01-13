@@ -20,10 +20,7 @@
     "clean": "rimraf dist *.tsbuildinfo",
     "build": "tsc -p tsconfig.build.json",
     "cb": "pnpm clean && pnpm build",
-    "lint": "eslint 'src/**/*.{js,ts,jsx,tsx}' --quiet --fix",
-    "example:wsmessage": "nodemon examples/wsmessage.ts",
-    "example:broadcaster": "nodemon examples/broadcaster.ts",
-    "example:expressqws": "nodemon examples/expressqws.ts"
+    "lint": "eslint 'src/**/*.{js,ts,jsx,tsx}' --quiet --fix"
   },
   "dependencies": {
     "auto-bind": "^4.0.0"
