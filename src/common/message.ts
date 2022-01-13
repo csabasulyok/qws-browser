@@ -42,7 +42,7 @@ export type BinaryQwsMessage = {
     /**
      * Message index in order. Helps in acknowledgments
      */
-    idx: number;
+    idx?: number;
   };
 
   body: Binary;

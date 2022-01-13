@@ -2,7 +2,6 @@ import autoBind from 'auto-bind';
 
 import { QwsMessage, AckQwsMessage, BinaryQwsMessage, ErrorQwsMessage, JsonQwsMessage, ReadyQwsMessage } from '../common/message';
 import { deserializeMessage, serializeMessage } from './messageencode';
-import { toUrlParams } from '../common/queryparser';
 import { Binary } from '../common/discriminator';
 
 /**
@@ -10,8 +9,6 @@ import { Binary } from '../common/discriminator';
  * WSQ formatted messages.
  */
 export default class WrappedWebSocket {
-  url: string;
-  queryParams: Record<string, unknown>;
   ws: WebSocket;
 
   callbacks: {
@@ -22,15 +19,14 @@ export default class WrappedWebSocket {
     err?: (message: ErrorQwsMessage) => void;
   };
 
-  constructor(url: string, queryParams: Record<string, unknown> = {}) {
-    this.url = url;
-    this.queryParams = queryParams;
+  constructor(wsOrUrl: WebSocket | string) {
     this.callbacks = {};
 
-    this.ws = new WebSocket(`${this.url}?${toUrlParams(this.queryParams)}`);
+    this.ws = wsOrUrl instanceof WebSocket || wsOrUrl?.constructor?.name === 'WebSocket' ? (wsOrUrl as WebSocket) : new WebSocket(wsOrUrl);
 
     this.ws.onmessage = async (event: MessageEvent<Binary>) => {
       const message = await deserializeMessage(event.data);
+      // console.log('WRAPPER received', message);
       const callback = this.callbacks[message.headers.type] as (msg: QwsMessage) => void;
       callback?.(message);
     };
@@ -93,11 +89,13 @@ export default class WrappedWebSocket {
    * Proxy methods
    */
   send(message: QwsMessage): void {
+    // console.log('WRAPPER sending', message);
     const data = serializeMessage(message);
     this.ws.send(data);
   }
 
   sendRaw(data: Binary): void {
+    // console.log('WRAPPER send raw', data.toString());
     this.ws.send(data);
   }
 

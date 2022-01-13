@@ -19,7 +19,7 @@ function jsonBinaryToObject(jsonBinary: Buffer): Record<string, unknown> {
 }
 
 /**
- * Convert blob received through underlying WS into WSQ message
+ * Convert binary data received through underlying WS into WSQ message
  * Changes type based on type header
  */
 export async function deserializeMessage(buffer: Buffer): Promise<QwsMessage> {
