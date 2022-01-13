@@ -31,6 +31,7 @@ rules:
   max-params: ["error", 8]
   max-depth: ["error", 5]
   max-lines-per-function: ["error", 120]
+  max-classes-per-file: 0
   complexity: ["error", 16]
   class-methods-use-this: 0
   arrow-parens: ["error", "always"]
