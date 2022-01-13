@@ -18,7 +18,7 @@ export default function expressQws(app?: Express): QwsApplication {
       try {
         const qws = new QWebSocket(ws, {
           name: req.path,
-          wsReconnectNumTries: 1, // do not reconnect on server-side
+          reconnect: false, // do not reconnect on server-side
         });
         handler(qws, req);
         // re-emit open event, since original consumed by express-ws

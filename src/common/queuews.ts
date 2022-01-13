@@ -29,14 +29,16 @@ const decodeErrorMessage = (event): string => {
 type QWebSocketOptions = {
   name?: string;
   extraConnectArgs?: Record<string, unknown>;
-  wsReconnectNumTries?: number;
-  wsReconnectIntervalMillis?: number;
+  reconnect?: boolean;
+  reconnectNumTries?: number;
+  reconnectIntervalMillis?: number;
 };
 
 const defaultOpts: Partial<QWebSocketOptions> = {
   extraConnectArgs: {},
-  wsReconnectNumTries: 12,
-  wsReconnectIntervalMillis: 5000,
+  reconnect: true,
+  reconnectNumTries: 12,
+  reconnectIntervalMillis: 5000,
 };
 
 export default class QWebSocket {
@@ -76,7 +78,7 @@ export default class QWebSocket {
     this.ready = false;
     autoBind(this);
 
-    this.connect();
+    this.setUp();
   }
 
   /**
@@ -112,17 +114,18 @@ export default class QWebSocket {
    */
 
   // eslint-disable-next-line max-lines-per-function
-  connect(): void {
+  setUp(): void {
     if (this.wws && this.wws.readyState <= 1) {
       return;
     }
 
     this.reconnectionAttempts += 1;
+    const { reconnect, reconnectNumTries, reconnectIntervalMillis, extraConnectArgs } = this.options;
 
     // timeout for too many reconnection attempts
-    if (this.reconnectionAttempts > this.options.wsReconnectNumTries) {
+    if (reconnect && this.reconnectionAttempts > reconnectNumTries) {
       console.error(`${this.name}: Connection timed out, should re-connect entirely`);
-      this.callbacks.onError?.(`WS connection timeout, max tries (${this.options.wsReconnectNumTries}) exceeded`);
+      this.callbacks.onError?.(`WS connection timeout, max tries (${reconnectNumTries}) exceeded`);
       return;
     }
 
@@ -135,7 +138,7 @@ export default class QWebSocket {
       // TODO what if this is a reconnect? No reconnection was attempted, it's just the old reference
     } else {
       const connectUrl = addQueryParamsToUrl(this.wsOrUrl, {
-        ...this.options.extraConnectArgs,
+        ...extraConnectArgs,
         idx: this.queue.ackIdx,
       });
       this.wws = new WrappedWebSocket(connectUrl);
@@ -149,9 +152,12 @@ export default class QWebSocket {
     });
 
     this.wws.onWsOpen(() => {
-      // flush if any messages in queue for it
-      console.log(`${this.name}: Connection established after ${this.reconnectionAttempts} tries`);
       this.reconnectionAttempts = 0;
+      if (reconnect) {
+        console.log(`${this.name}: Connection established after ${this.reconnectionAttempts} tries`);
+      } else {
+        console.log(`${this.name}: Connection established`);
+      }
 
       // call post-connect method, this may give previously acked messages
       const readyIdx = this.callbacks.onConnect?.() || 0;
@@ -173,7 +179,7 @@ export default class QWebSocket {
       this.queue.acknowledge(readyIdx - 1);
       this.queue.revert(readyIdx);
       this.ready = true;
-      // flush messages
+      // flush if any messages in queue for it
       this.flush();
     });
 
@@ -228,18 +234,23 @@ export default class QWebSocket {
     });
 
     this.wws.onWsClose(() => {
-      // if locally closed, needed should be false
-      // if it's true, it means we lost the connection and should try to re-connect
-      const { wsReconnectIntervalMillis } = this.options;
-      if (this.needed) {
-        console.log(`${this.name}: Closed pre-maturely, trying to reconnect after ${wsReconnectIntervalMillis}ms...`);
-        setTimeout(() => this.connect(), wsReconnectIntervalMillis);
+      if (reconnect && this.needed) {
+        // if locally closed, needed should be false
+        // if it's true, it means we lost the connection and should try to re-connect
+        console.log(`${this.name}: Closed pre-maturely, trying to reconnect after ${reconnectIntervalMillis}ms...`);
+        setTimeout(() => this.setUp(), reconnectIntervalMillis);
         this.callbacks.onErroneousDisconnect?.('Closed pre-maturely');
-      } else if (this.queue.numUnackMessages) {
-        console.log(`${this.name}: Closed with messages still in queue, reconnecting in ${wsReconnectIntervalMillis}ms...`);
-        setTimeout(() => this.connect(), wsReconnectIntervalMillis);
+      } else if (reconnect && this.queue.numUnackMessages) {
+        // if there are still messages left to be sent and we should reconnect
+        console.log(`${this.name}: Closed with messages still in queue, reconnecting in ${reconnectIntervalMillis}ms...`);
+        setTimeout(() => this.setUp(), reconnectIntervalMillis);
         this.callbacks.onErroneousDisconnect?.('Closed with messages still in queue');
+      } else if (this.queue.numUnackMessages) {
+        // if there are still messages left to be sent, but we should not reconnect
+        console.log(`${this.name}: Closed with messages still in queue`);
+        this.callbacks.onError?.('Closed with messages still in queue');
       } else {
+        // all is well
         console.log(`${this.name}: Closed correctly`);
         this.callbacks.onClose?.();
       }

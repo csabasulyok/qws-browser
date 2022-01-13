@@ -1,8 +1,8 @@
 import QWebSocket from '../src';
 
 const qws = new QWebSocket('ws://localhost:3000/mypath', {
-  wsReconnectNumTries: 2,
-  wsReconnectIntervalMillis: 2000,
+  reconnectNumTries: 2,
+  reconnectIntervalMillis: 2000,
 });
 
 const interval = setInterval(() => {
