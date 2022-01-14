@@ -35,16 +35,16 @@ export type QwsMessageExtraHeaders = {
  * Binary payload messages
  * Contain binary body (like video data)
  */
+export type BinaryQwsMessageHeaders = QwsMessageExtraHeaders & {
+  type: 'bin';
+  /**
+   * Message index in order. Helps in acknowledgments
+   */
+  idx?: number;
+};
+
 export type BinaryQwsMessage = {
-  headers: QwsMessageExtraHeaders & {
-    type: 'bin';
-
-    /**
-     * Message index in order. Helps in acknowledgments
-     */
-    idx?: number;
-  };
-
+  headers: BinaryQwsMessageHeaders;
   body: Binary;
 };
 
@@ -52,16 +52,17 @@ export type BinaryQwsMessage = {
  * JSON payload message
  * Contain base64-JSON encoded data
  */
+
+export type JsonQwsMessageHeaders = QwsMessageExtraHeaders & {
+  type: 'json';
+  /**
+   * Message index in order. Helps in acknowledgments
+   */
+  idx: number;
+};
+
 export type JsonQwsMessage = {
-  headers: QwsMessageExtraHeaders & {
-    type: 'json';
-
-    /**
-     * Message index in order. Helps in acknowledgments
-     */
-    idx: number;
-  };
-
+  headers: JsonQwsMessageHeaders;
   body: Record<string, unknown>;
 };
 
@@ -70,45 +71,54 @@ export type JsonQwsMessage = {
  * Sent back after successful connect, signalling we are ready to receive events
  * Optionally contains a message index denoting how many messages we already have received previously
  */
-export type ReadyQwsMessage = {
-  headers: QwsMessageExtraHeaders & {
-    type: 'ready';
 
-    /**
-     * Message index we have already received previously that may be omitted.
-     */
-    readyIdx: number;
-  };
+export type ReadyQwsMessageHeaders = QwsMessageExtraHeaders & {
+  type: 'ready';
+
+  /**
+   * Message index we have already received previously that may be omitted.
+   */
+  readyIdx: number;
+};
+
+export type ReadyQwsMessage = {
+  headers: ReadyQwsMessageHeaders;
 };
 
 /**
  * Acknowledgment message
  * Sent back for every payload message
  */
-export type AckQwsMessage = {
-  headers: {
-    type: 'ack';
 
-    /**
-     * Message index from other side we are acknowledging
-     */
-    ackIdx: number;
-  };
+export type AckQwsMessageHeaders = {
+  type: 'ack';
+
+  /**
+   * Message index from other side we are acknowledging
+   */
+  ackIdx: number;
+};
+
+export type AckQwsMessage = {
+  headers: AckQwsMessageHeaders;
 };
 
 /**
  * Error message
  * Sent back if processing a message is unsuccessful
  */
-export type ErrorQwsMessage = {
-  headers: {
-    type: 'err';
 
-    /**
-     * Message of error
-     */
-    error: string;
-  };
+export type ErrorQwsMessageHeaders = {
+  type: 'err';
+
+  /**
+   * Message of error
+   */
+  error: string;
+};
+
+export type ErrorQwsMessage = {
+  headers: ErrorQwsMessageHeaders;
 };
 
 /**
@@ -116,3 +126,9 @@ export type ErrorQwsMessage = {
  */
 export type PayloadQwsMessage = BinaryQwsMessage | JsonQwsMessage;
 export type QwsMessage = BinaryQwsMessage | JsonQwsMessage | ReadyQwsMessage | AckQwsMessage | ErrorQwsMessage;
+export type QwsMessageHeader =
+  | BinaryQwsMessageHeaders
+  | JsonQwsMessageHeaders
+  | ReadyQwsMessageHeaders
+  | AckQwsMessageHeaders
+  | ErrorQwsMessageHeaders;
