@@ -22,7 +22,11 @@ export default class WrappedWebSocket {
   constructor(wsOrUrl: WebSocket | string) {
     this.callbacks = {};
 
-    this.ws = wsOrUrl instanceof WebSocket || wsOrUrl?.constructor?.name === 'WebSocket' ? (wsOrUrl as WebSocket) : new WebSocket(wsOrUrl);
+    if (wsOrUrl instanceof WebSocket || wsOrUrl?.constructor?.name === 'WebSocket') {
+      this.ws = wsOrUrl as WebSocket;
+    } else {
+      this.ws = new WebSocket(wsOrUrl);
+    }
 
     this.ws.onmessage = async (event: MessageEvent<Binary>) => {
       const message = await deserializeMessage(event.data);

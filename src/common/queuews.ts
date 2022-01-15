@@ -11,6 +11,7 @@ import {
   QwsMessageExtraHeaders,
   BinaryQwsMessageHeaders,
   JsonQwsMessageHeaders,
+  ReadyQwsMessageHeaders,
 } from './message';
 import WebSocketMessageQueue from './queue';
 import WrappedWebSocket from '../browser/wrappedws';
@@ -32,7 +33,8 @@ const decodeErrorMessage = (event): string => {
  */
 export type ConnectCallback = () => void | number | Promise<void> | Promise<number>;
 export type BinCallback = (body: Binary, headers?: BinaryQwsMessageHeaders) => void | Promise<void>;
-export type JsonCallback = (body: Record<string, unknown>, headers?: JsonQwsMessageHeaders) => void | Promise<void>;
+export type JsonCallback<T> = (body: T, headers?: JsonQwsMessageHeaders) => void | Promise<void>;
+export type ReadyCallback = (headers?: ReadyQwsMessageHeaders) => void | Promise<void>;
 
 /**
  * Connection options
@@ -69,7 +71,9 @@ export default class QWebSocket {
   callbacks: {
     onConnect?: ConnectCallback;
     onBin?: BinCallback;
-    onJson?: JsonCallback;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onJson?: JsonCallback<any>;
+    onReady?: ReadyCallback;
     onErroneousDisconnect?: (message: string) => void;
     onError?: (message: string) => void;
     onClose?: () => void;
@@ -107,8 +111,12 @@ export default class QWebSocket {
     this.callbacks.onBin = callback;
   }
 
-  onJson(callback: JsonCallback): void {
+  onJson<T>(callback: JsonCallback<T>): void {
     this.callbacks.onJson = callback;
+  }
+
+  onReady(callback: ReadyCallback): void {
+    this.callbacks.onReady = callback;
   }
 
   onErroneousDisconnect(callback: () => void): void {
@@ -162,7 +170,12 @@ export default class QWebSocket {
       // ws error will prompt reconnection which can time out, don't reject instantly
       const message = decodeErrorMessage(event);
       console.error(`${this.name}: WS error occurred: ${message}`);
-      this.callbacks.onErroneousDisconnect?.(message);
+
+      if (reconnect) {
+        this.callbacks.onErroneousDisconnect?.(message);
+      } else {
+        this.callbacks.onError?.(message);
+      }
     });
 
     this.wws.onWsOpen(async () => {
@@ -195,7 +208,7 @@ export default class QWebSocket {
       }
     });
 
-    this.wws.onReady((message: ReadyQwsMessage) => {
+    this.wws.onReady(async (message: ReadyQwsMessage) => {
       // ready to send messages from given message index
       const { readyIdx } = message.headers;
       console.log(`${this.name}: Socket ready to send from chunk ${readyIdx}`);
@@ -205,6 +218,19 @@ export default class QWebSocket {
       this.ready = true;
       // flush if any messages in queue for it
       this.flush();
+
+      try {
+        // call post-ready method
+        await this.callbacks.onReady?.(message.headers);
+      } catch (err) {
+        // error occurred during initialization phase, send error right away, no "ready" message
+        this.wws.send({
+          headers: {
+            type: 'err',
+            error: decodeErrorMessage(err),
+          },
+        } as ErrorQwsMessage);
+      }
     });
 
     this.wws.onBin(async (message: BinaryQwsMessage) => {

@@ -2,7 +2,7 @@
 export const parseUrl = (urlString: string): Record<string, string> => {
   const url = new URL(urlString);
   const query = {};
-  [...url.searchParams.entries()].forEach(([key, val]) => {
+  url.searchParams.forEach((val, key) => {
     query[key] = val;
   });
   return query;
@@ -12,7 +12,7 @@ export const parseUrl = (urlString: string): Record<string, string> => {
 export const parseQuery = (search: string): Record<string, string> => {
   const params = new URLSearchParams(search);
   const query = {};
-  [...params.entries()].forEach(([key, val]) => {
+  params.forEach((val, key) => {
     query[key] = val;
   });
   return query;
