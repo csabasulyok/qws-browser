@@ -13,11 +13,13 @@ specifiers:
   nodemon: ^2.0.12
   prettier: ^2.3.2
   rimraf: ^3.0.2
+  route-recognizer: ^0.3.4
   ts-node: ^10.2.1
   typescript: ^4.3.5
 
 dependencies:
   auto-bind: 4.0.0
+  route-recognizer: 0.3.4
 
 devDependencies:
   '@typescript-eslint/eslint-plugin': 4.33.0_3289a875d95a672b97ebf589745c66ef
@@ -1823,6 +1825,10 @@ packages:
     dependencies:
       glob: 7.2.0
     dev: true
+
+  /route-recognizer/0.3.4:
+    resolution: {integrity: sha512-2+MhsfPhvauN1O8KaXpXAOfR/fwe8dnUXVM+xw7yt40lJRfPVQxV6yryZm0cgRvAj5fMF/mdRZbL2ptwbs5i2g==}
+    dev: false
 
   /run-parallel/1.2.0:
     resolution: {integrity: sha512-5l4VyZR86LZ/lDxZTR6jqL8AFE2S0IFLMP26AbjsLVADxHdhB/c0GUsH+y39UfCi3dzz8OlQuPmnaJOMoDHQBA==}

@@ -41,6 +41,10 @@ export type BinaryQwsMessageHeaders = QwsMessageExtraHeaders & {
    * Message index in order. Helps in acknowledgments
    */
   idx?: number;
+  /**
+   * Routing key for message
+   */
+  route?: string;
 };
 
 export type BinaryQwsMessage = {
@@ -59,6 +63,10 @@ export type JsonQwsMessageHeaders = QwsMessageExtraHeaders & {
    * Message index in order. Helps in acknowledgments
    */
   idx: number;
+  /**
+   * Routing key for message
+   */
+  route?: string;
 };
 
 export type JsonQwsMessage = {
