@@ -115,7 +115,7 @@ export default class QWebSocket {
   }
 
   onBin(callback: BinCallback): void {
-    this.onBinRoute('/', callback);
+    this.onBinRoute('*', callback);
   }
 
   onJsonRoute<T>(routePattern: string, callback: JsonCallback<T>): void {
@@ -123,7 +123,7 @@ export default class QWebSocket {
   }
 
   onJson<T>(callback: JsonCallback<T>): void {
-    this.onJsonRoute('/', callback);
+    this.onJsonRoute('*', callback);
   }
 
   onReady(callback: ReadyCallback): void {
