@@ -28,6 +28,16 @@ export type QwsMessageExtraHeaders = {
 };
 
 /**
+ * Path parameters decodable with route-recognizer when using routed messages.
+ */
+export type QwsParams = {
+  /**
+   * Other X-headers
+   */
+  [key: string]: string;
+};
+
+/**
  * Message types
  */
 

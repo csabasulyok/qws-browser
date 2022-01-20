@@ -1,5 +1,5 @@
 import autoBind from 'auto-bind';
-import RouteRecognizer, { Params } from 'route-recognizer';
+import RouteRecognizer from 'route-recognizer';
 
 import { Binary } from './discriminator';
 import {
@@ -13,6 +13,7 @@ import {
   BinaryQwsMessageHeaders,
   JsonQwsMessageHeaders,
   ReadyQwsMessageHeaders,
+  QwsParams,
 } from './message';
 import WebSocketMessageQueue from './queue';
 import WrappedWebSocket from '../browser/wrappedws';
@@ -33,8 +34,8 @@ const decodeErrorMessage = (event): string => {
  * Callback types
  */
 export type ConnectCallback = () => void | number | Promise<void> | Promise<number>;
-export type BinCallback = (body: Binary, headers?: BinaryQwsMessageHeaders, params?: Params) => void | Promise<void>;
-export type JsonCallback<T> = (body: T, headers?: JsonQwsMessageHeaders, params?: Params) => void | Promise<void>;
+export type BinCallback = (body: Binary, headers?: BinaryQwsMessageHeaders, params?: QwsParams) => void | Promise<void>;
+export type JsonCallback<T> = (body: T, headers?: JsonQwsMessageHeaders, params?: QwsParams) => void | Promise<void>;
 export type ReadyCallback = (headers?: ReadyQwsMessageHeaders) => void | Promise<void>;
 
 /**
@@ -252,8 +253,9 @@ export default class QWebSocket {
         // check callback
         const routeResults = this.callbacks.onBin.recognize(headers.route || '/');
         if (routeResults) {
-          const { handler, params } = routeResults[0];
-          await (handler as BinCallback)?.(body, headers, params);
+          const handler = routeResults[0].handler as BinCallback;
+          const params = routeResults[0].params as QwsParams;
+          await handler?.(body, headers, params);
         }
 
         // send back acknowledgment
@@ -282,8 +284,9 @@ export default class QWebSocket {
         // check callback
         const routeResults = this.callbacks.onJson.recognize(headers.route || '/');
         if (routeResults) {
-          const { handler, params } = routeResults[0];
-          await (handler as JsonCallback<unknown>)?.(body, headers, params);
+          const handler = routeResults[0].handler as JsonCallback<unknown>;
+          const params = routeResults[0].params as QwsParams;
+          await handler?.(body, headers, params);
         }
 
         // send back acknowledgment
@@ -406,9 +409,16 @@ export default class QWebSocket {
     return idx;
   }
 
-  close(): void {
-    // flush if any messages in queue
-    this.needed = false;
-    this.flush();
+  /**
+   * Closes WS and sets promise resolution as callback.
+   * Overwrites any manually set up callback for onClose.
+   */
+  close(): Promise<void> {
+    return new Promise((resolve) => {
+      // flush if any messages in queue
+      this.callbacks.onClose = resolve;
+      this.needed = false;
+      this.flush();
+    });
   }
 }
