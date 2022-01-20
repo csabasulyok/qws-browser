@@ -8,7 +8,7 @@ Safe queueing with auto-reconnect for WebSockets
 - Message queueing with retainment
 - Automatic two-way acknowledgment stream of messages - all messages are retained in-memory until acknowledgment is provided
 - Configurable headers per message, even when body is binary
-- Express integration via [express-ws](https://github.com/HenningM/express-ws)
+- Simple message routing (via [route-recognizer](https://github.com/tildeio/route-recognizer))
 
 # Examples
 
