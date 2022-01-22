@@ -18,6 +18,7 @@ import {
 import WebSocketMessageQueue from './queue';
 import WrappedWebSocket from '../browser/wrappedws';
 import { addQueryParamsToUrl } from './queryparser';
+import logger from './logger';
 
 const decodeErrorMessage = (event): string => {
   if (event?.message) {
@@ -158,7 +159,7 @@ export default class QWebSocket {
 
     // timeout for too many reconnection attempts
     if (reconnect && this.reconnectionAttempts > reconnectNumTries) {
-      console.error(`${this.name}: Connection timed out, should re-connect entirely`);
+      logger.error(`${this.name}: Connection timed out, should re-connect entirely`);
       this.callbacks.onError?.(`WS connection timeout, max tries (${reconnectNumTries}) exceeded`);
       return;
     }
@@ -181,7 +182,7 @@ export default class QWebSocket {
     this.wws.onWsError(async (event) => {
       // ws error will prompt reconnection which can time out, don't reject instantly
       const message = decodeErrorMessage(event);
-      console.error(`${this.name}: WS error occurred: ${message}`);
+      logger.error(`${this.name}: WS error occurred: ${message}`);
 
       if (reconnect) {
         await this.callbacks.onErroneousDisconnect?.(message);
@@ -193,9 +194,9 @@ export default class QWebSocket {
     this.wws.onWsOpen(async () => {
       this.reconnectionAttempts = 0;
       if (reconnect) {
-        console.log(`${this.name}: Connection established after ${this.reconnectionAttempts} tries`);
+        logger.info(`${this.name}: Connection established after ${this.reconnectionAttempts} tries`);
       } else {
-        console.log(`${this.name}: Connection established`);
+        logger.info(`${this.name}: Connection established`);
       }
 
       try {
@@ -223,7 +224,7 @@ export default class QWebSocket {
     this.wws.onReady(async (message: ReadyQwsMessage) => {
       // ready to send messages from given message index
       const { readyIdx } = message.headers;
-      console.log(`${this.name}: Socket ready to send${readyIdx ? `from chunk ${readyIdx}` : ''}`);
+      logger.info(`${this.name}: Socket ready to send${readyIdx ? `from chunk ${readyIdx}` : ''}`);
       // if server sent chunk index to resume from, move queue cursors appropriately
       if (readyIdx !== undefined) {
         this.queue.acknowledge(readyIdx - 1);
@@ -319,7 +320,7 @@ export default class QWebSocket {
 
     this.wws.onErr(async (message: ErrorQwsMessage) => {
       // handle error
-      console.error(`${this.name}: Error occurred: ${message.headers.error}`);
+      logger.error(`${this.name}: Error occurred: ${message.headers.error}`);
       await this.callbacks.onError?.(message.headers.error);
     });
 
@@ -327,21 +328,21 @@ export default class QWebSocket {
       if (reconnect && this.needed) {
         // if locally closed, needed should be false
         // if it's true, it means we lost the connection and should try to re-connect
-        console.log(`${this.name}: Closed pre-maturely, trying to reconnect after ${reconnectIntervalMillis}ms...`);
+        logger.info(`${this.name}: Closed pre-maturely, trying to reconnect after ${reconnectIntervalMillis}ms...`);
         setTimeout(() => this.setUp(), reconnectIntervalMillis);
         await this.callbacks.onErroneousDisconnect?.('Closed pre-maturely');
       } else if (reconnect && this.queue.numUnackMessages) {
         // if there are still messages left to be sent and we should reconnect
-        console.log(`${this.name}: Closed with messages still in queue, reconnecting in ${reconnectIntervalMillis}ms...`);
+        logger.info(`${this.name}: Closed with messages still in queue, reconnecting in ${reconnectIntervalMillis}ms...`);
         setTimeout(() => this.setUp(), reconnectIntervalMillis);
         await this.callbacks.onErroneousDisconnect?.('Closed with messages still in queue');
       } else if (this.queue.numUnackMessages) {
         // if there are still messages left to be sent, but we should not reconnect
-        console.log(`${this.name}: Closed with messages still in queue`);
+        logger.info(`${this.name}: Closed with messages still in queue`);
         await this.callbacks.onError?.('Closed with messages still in queue');
       } else {
         // all is well
-        console.log(`${this.name}: Closed correctly`);
+        logger.info(`${this.name}: Closed correctly`);
         await this.callbacks.onClose?.();
       }
     });
@@ -357,12 +358,12 @@ export default class QWebSocket {
     if (this.queue.numUnsentMessages) {
       // pop a message
       const [idx, data] = this.queue.consume();
-      console.debug(`${this.name}: Sending chunk ${idx} of size ${data.size}`);
+      logger.debug(`${this.name}: Sending chunk ${idx} of size ${data.size}`);
       this.wws.sendRaw(data);
-      console.debug(`${this.name}: MQ decreased to size ${this.queue.numUnsentMessages} messages / ${this.queue.numUnsentBytes} bytes`);
+      logger.debug(`${this.name}: MQ decreased to size ${this.queue.numUnsentMessages} messages / ${this.queue.numUnsentBytes} bytes`);
       this.flush();
     } else {
-      console.debug(`${this.name}: Flushing complete, no ws messages backed up`);
+      logger.debug(`${this.name}: Flushing complete, no ws messages backed up`);
       // if not needed anymore after flush, close it
       // send close event to ws, don't de-cache yet, wait for event
       if (!this.queue.numUnackMessages && !this.needed) {

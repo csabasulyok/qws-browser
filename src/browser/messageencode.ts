@@ -1,3 +1,4 @@
+import logger from '../common/logger';
 import { QwsMessage, BinaryQwsMessage, JsonQwsMessage } from '../common/message';
 
 /**
@@ -25,7 +26,7 @@ async function jsonBinaryToObject(jsonBinary: Blob): Promise<Record<string, unkn
  */
 export async function deserializeMessage(blob: Blob): Promise<QwsMessage> {
   if (blob.size < 4) {
-    console.error('Invalid blob size');
+    logger.error('Invalid blob size');
     return {
       headers: { type: 'bin' },
       body: blob,
@@ -37,7 +38,7 @@ export async function deserializeMessage(blob: Blob): Promise<QwsMessage> {
   const headersSizeArray = new Uint32Array(headersSizeBlob);
   const headersSize = headersSizeArray[0];
   if (headersSize > blob.size - 4) {
-    console.error(`Invalid header size ${headersSize} > ${blob.size - 4}`);
+    logger.error(`Invalid header size ${headersSize} > ${blob.size - 4}`);
     return {
       headers: { type: 'bin' },
       body: blob,
@@ -64,7 +65,7 @@ export async function deserializeMessage(blob: Blob): Promise<QwsMessage> {
 
     return { headers, body } as QwsMessage;
   } catch (ex) {
-    console.error('Could not decode message', ex);
+    logger.error('Could not decode message', ex);
     return {
       headers: { type: 'bin' },
       body: blob,

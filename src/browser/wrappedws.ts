@@ -30,7 +30,7 @@ export default class WrappedWebSocket {
 
     this.ws.onmessage = async (event: MessageEvent<Binary>) => {
       const message = await deserializeMessage(event.data);
-      // console.log('WRAPPER received', message);
+      // logger.info('WRAPPER received', message);
       const callback = this.callbacks[message.headers.type] as (msg: QwsMessage) => void;
       callback?.(message);
     };
@@ -93,13 +93,13 @@ export default class WrappedWebSocket {
    * Proxy methods
    */
   send(message: QwsMessage): void {
-    // console.log('WRAPPER sending', message);
+    // logger.info('WRAPPER sending', message);
     const data = serializeMessage(message);
     this.ws.send(data);
   }
 
   sendRaw(data: Binary): void {
-    // console.log('WRAPPER send raw', data.toString());
+    // logger.info('WRAPPER send raw', data.toString());
     this.ws.send(data);
   }
 
