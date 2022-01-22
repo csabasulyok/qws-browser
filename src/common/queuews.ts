@@ -75,9 +75,9 @@ export default class QWebSocket {
     onBin: RouteRecognizer;
     onJson: RouteRecognizer;
     onReady?: ReadyCallback;
-    onErroneousDisconnect?: (message: string) => void;
-    onError?: (message: string) => void;
-    onClose?: () => void;
+    onErroneousDisconnect?: (message: string) => void | Promise<void>;
+    onError?: (message: string) => void | Promise<void>;
+    onClose?: () => void | Promise<void>;
   };
 
   constructor(wsOrUrl: WebSocket | string, options: QWebSocketOptions = {}) {
@@ -178,15 +178,15 @@ export default class QWebSocket {
       this.wws = new WrappedWebSocket(connectUrl);
     }
 
-    this.wws.onWsError((event) => {
+    this.wws.onWsError(async (event) => {
       // ws error will prompt reconnection which can time out, don't reject instantly
       const message = decodeErrorMessage(event);
       console.error(`${this.name}: WS error occurred: ${message}`);
 
       if (reconnect) {
-        this.callbacks.onErroneousDisconnect?.(message);
+        await this.callbacks.onErroneousDisconnect?.(message);
       } else {
-        this.callbacks.onError?.(message);
+        await this.callbacks.onError?.(message);
       }
     });
 
@@ -200,7 +200,7 @@ export default class QWebSocket {
 
       try {
         // call post-connect method, this may give previously acked messages
-        const readyIdx = (await this.callbacks.onConnect?.()) || 0;
+        const readyIdx = await this.callbacks.onConnect?.();
 
         // send back readiness ack
         this.wws.send({
@@ -224,9 +224,11 @@ export default class QWebSocket {
       // ready to send messages from given message index
       const { readyIdx } = message.headers;
       console.log(`${this.name}: Socket ready to send from chunk ${readyIdx}`);
-      // move queue cursors appropriately
-      this.queue.acknowledge(readyIdx - 1);
-      this.queue.revert(readyIdx);
+      // if server sent chunk index to resume from, move queue cursors appropriately
+      if (readyIdx !== undefined) {
+        this.queue.acknowledge(readyIdx - 1);
+        this.queue.revert(readyIdx);
+      }
       this.ready = true;
       // flush if any messages in queue for it
       this.flush();
@@ -315,32 +317,32 @@ export default class QWebSocket {
       }
     });
 
-    this.wws.onErr((message: ErrorQwsMessage) => {
+    this.wws.onErr(async (message: ErrorQwsMessage) => {
       // handle error
       console.error(`${this.name}: Error occurred: ${message.headers.error}`);
-      this.callbacks.onError?.(message.headers.error);
+      await this.callbacks.onError?.(message.headers.error);
     });
 
-    this.wws.onWsClose(() => {
+    this.wws.onWsClose(async () => {
       if (reconnect && this.needed) {
         // if locally closed, needed should be false
         // if it's true, it means we lost the connection and should try to re-connect
         console.log(`${this.name}: Closed pre-maturely, trying to reconnect after ${reconnectIntervalMillis}ms...`);
         setTimeout(() => this.setUp(), reconnectIntervalMillis);
-        this.callbacks.onErroneousDisconnect?.('Closed pre-maturely');
+        await this.callbacks.onErroneousDisconnect?.('Closed pre-maturely');
       } else if (reconnect && this.queue.numUnackMessages) {
         // if there are still messages left to be sent and we should reconnect
         console.log(`${this.name}: Closed with messages still in queue, reconnecting in ${reconnectIntervalMillis}ms...`);
         setTimeout(() => this.setUp(), reconnectIntervalMillis);
-        this.callbacks.onErroneousDisconnect?.('Closed with messages still in queue');
+        await this.callbacks.onErroneousDisconnect?.('Closed with messages still in queue');
       } else if (this.queue.numUnackMessages) {
         // if there are still messages left to be sent, but we should not reconnect
         console.log(`${this.name}: Closed with messages still in queue`);
-        this.callbacks.onError?.('Closed with messages still in queue');
+        await this.callbacks.onError?.('Closed with messages still in queue');
       } else {
         // all is well
         console.log(`${this.name}: Closed correctly`);
-        this.callbacks.onClose?.();
+        await this.callbacks.onClose?.();
       }
     });
   }
@@ -415,9 +417,16 @@ export default class QWebSocket {
    */
   close(): Promise<void> {
     return new Promise((resolve) => {
-      // flush if any messages in queue
-      this.callbacks.onClose = resolve;
       this.needed = false;
+
+      // wrap original onClose to resolve this promise
+      const { onClose } = this.callbacks;
+      this.callbacks.onClose = async () => {
+        await onClose?.();
+        resolve();
+      };
+
+      // flush if any messages in queue
       this.flush();
     });
   }
