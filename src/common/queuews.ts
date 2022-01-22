@@ -223,7 +223,7 @@ export default class QWebSocket {
     this.wws.onReady(async (message: ReadyQwsMessage) => {
       // ready to send messages from given message index
       const { readyIdx } = message.headers;
-      console.log(`${this.name}: Socket ready to send from chunk ${readyIdx}`);
+      console.log(`${this.name}: Socket ready to send${readyIdx ? `from chunk ${readyIdx}` : ''}`);
       // if server sent chunk index to resume from, move queue cursors appropriately
       if (readyIdx !== undefined) {
         this.queue.acknowledge(readyIdx - 1);
@@ -357,7 +357,7 @@ export default class QWebSocket {
     if (this.queue.numUnsentMessages) {
       // pop a message
       const [idx, data] = this.queue.consume();
-      console.log(`${this.name}: Sending chunk ${idx} of size ${data.size}`);
+      console.debug(`${this.name}: Sending chunk ${idx} of size ${data.size}`);
       this.wws.sendRaw(data);
       console.debug(`${this.name}: MQ decreased to size ${this.queue.numUnsentMessages} messages / ${this.queue.numUnsentBytes} bytes`);
       this.flush();
