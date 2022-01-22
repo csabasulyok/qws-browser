@@ -116,7 +116,7 @@ export default class QWebSocket {
   }
 
   onBin(callback: BinCallback): void {
-    this.onBinRoute('*', callback);
+    this.onBinRoute('', callback);
   }
 
   onJsonRoute<T>(routePattern: string, callback: JsonCallback<T>): void {
@@ -124,7 +124,7 @@ export default class QWebSocket {
   }
 
   onJson<T>(callback: JsonCallback<T>): void {
-    this.onJsonRoute('*', callback);
+    this.onJsonRoute('', callback);
   }
 
   onReady(callback: ReadyCallback): void {
@@ -251,7 +251,7 @@ export default class QWebSocket {
 
       try {
         // check callback
-        const routeResults = this.callbacks.onBin.recognize(headers.route || '/');
+        const routeResults = this.callbacks.onBin.recognize(headers.route || '');
         if (routeResults) {
           const handler = routeResults[0].handler as BinCallback;
           const params = routeResults[0].params as QwsParams;
@@ -282,7 +282,7 @@ export default class QWebSocket {
 
       try {
         // check callback
-        const routeResults = this.callbacks.onJson.recognize(headers.route || '/');
+        const routeResults = this.callbacks.onJson.recognize(headers.route || '');
         if (routeResults) {
           const handler = routeResults[0].handler as JsonCallback<unknown>;
           const params = routeResults[0].params as QwsParams;
