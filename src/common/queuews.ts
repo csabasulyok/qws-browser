@@ -340,6 +340,7 @@ export default class QWebSocket {
         // if there are still messages left to be sent, but we should not reconnect
         logger.info(`${this.name}: Closed with messages still in queue`);
         await this.callbacks.onError?.('Closed with messages still in queue');
+        await this.callbacks.onClose?.();
       } else {
         // all is well
         logger.info(`${this.name}: Closed correctly`);
