@@ -11,7 +11,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/csabasulyok/qws.git"
+    "url": "git+https://github.com/csabasulyok/qws-browser.git"
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
