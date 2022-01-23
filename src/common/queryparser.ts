@@ -19,11 +19,11 @@ export const parseQuery = (search: string): Record<string, string> => {
 };
 
 // parse query parameters from URL
-export const addQueryParamsToUrl = (urlString: string, params: Record<string, string>): string => {
+export const addQueryParamsToUrl = (urlString: string, params: Record<string, unknown>): string => {
   const url = new URL(urlString);
 
   Object.entries(params).forEach(([key, val]) => {
-    url.searchParams.set(key, val);
+    url.searchParams.set(key, `${val}`);
   });
 
   return url.toString();
