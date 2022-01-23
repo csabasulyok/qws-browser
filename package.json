@@ -1,6 +1,6 @@
 {
   "name": "qws-browser",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Safe queueing with auto-reconnect for WebSockets",
   "author": "Csaba Sulyok <csaba.sulyok@gmail.com>",
   "license": "ISC",
