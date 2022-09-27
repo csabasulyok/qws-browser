@@ -1,50 +1,59 @@
 env:
   browser: true
   commonjs: true
-  es6: true
+  es2021: true
 extends:
+  - eslint:recommended
   - airbnb-base
-  - plugin:@typescript-eslint/eslint-recommended
+  - airbnb-typescript
   - plugin:@typescript-eslint/recommended
+  - plugin:import/typescript
   - prettier
-  - plugin:prettier/recommended
-globals:
-  Atomics: readonly
-  SharedArrayBuffer: readonly
+parser: '@typescript-eslint/parser'
 parserOptions:
-  ecmaVersion: 2018
-rules: 
-  semi: 
-    - error
-    - always
-  quotes:
-    - error
-    - single
+  ecmaVersion: latest
+  sourceType: module
+  project: ./tsconfig.json
+plugins:
+  - '@typescript-eslint'
+  - prettier
+rules:
+  semi: 0
+  quotes: ['error', 'single']
   no-multi-spaces: 0
   no-param-reassign: 0
   one-var: 0
   no-console: 0
   linebreak-style: 0
-  no-underscore-dangle: ["error", { "allow": ["_id"] }]
-  max-len: ["error", { "code": 140, "ignoreStrings": true, "ignoreTemplateLiterals": true }]
-  max-nested-callbacks: ["error", 3]
-  max-params: ["error", 8]
-  max-depth: ["error", 5]
-  max-lines-per-function: ["error", 120]
+  no-underscore-dangle: 0
   max-classes-per-file: 0
-  complexity: ["error", 16]
+  max-len: ['error', { 'code': 120, 'ignoreStrings': true, 'ignoreTemplateLiterals': true, 'ignoreComments': true }]
+  max-nested-callbacks: ['error', 3]
+  max-params: ['error', 8]
+  max-depth: ['error', 5]
+  max-lines-per-function: ['error', 120]
+  complexity: ['error', 16]
   class-methods-use-this: 0
-  arrow-parens: ["error", "always"]
-  object-curly-newline: ["error", { "minProperties": 8, "consistent": true }]
-  import/extensions: ["error", { "ts": "never" }]
+  arrow-parens: ['error', 'always']
+  require-await: ['error']
+  import/extensions: ['error', { 'ts': 'never' }]
   import/no-unresolved: error
-  lines-between-class-members: ["error", "always", { "exceptAfterSingleLine": true }]
+  lines-between-class-members: ['error', 'always', { 'exceptAfterSingleLine': true }]
+  arrow-body-style: 0
+  import/prefer-default-export: 0
+  no-trailing-spaces: ['error', { 'skipBlankLines': true, 'ignoreComments': true }]
+  camelcase: error
+  spaced-comment: error
+  no-duplicate-imports: error
+  react/jsx-filename-extension: 0
+  '@typescript-eslint/no-use-before-define': ['error']
+  '@typescript-eslint/lines-between-class-members': 0
+  '@typescript-eslint/semi': ['error']
 settings:
   import/parsers:
-    "@typescript-eslint/parser":
-    - ".ts"
-    - ".tsx"
+    '@typescript-eslint/parser':
+      - '.ts'
   import/resolver:
     typescript:
       project:
-      - "*/tsconfig.json"
+        - '*/tsconfig.json'

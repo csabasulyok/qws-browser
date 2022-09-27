@@ -1,6 +1,13 @@
 import autoBind from 'auto-bind';
 
-import { QwsMessage, AckQwsMessage, BinaryQwsMessage, ErrorQwsMessage, JsonQwsMessage, ReadyQwsMessage } from '../common/message';
+import {
+  QwsMessage,
+  AckQwsMessage,
+  BinaryQwsMessage,
+  ErrorQwsMessage,
+  JsonQwsMessage,
+  ReadyQwsMessage,
+} from '../common/message';
 import { deserializeMessage, serializeMessage } from './messageencode';
 import { Binary } from '../common/discriminator';
 

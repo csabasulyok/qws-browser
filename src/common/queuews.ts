@@ -333,7 +333,9 @@ export default class QWebSocket {
         await this.callbacks.onErroneousDisconnect?.('Closed pre-maturely');
       } else if (reconnect && this.queue.numUnackMessages) {
         // if there are still messages left to be sent and we should reconnect
-        logger.info(`${this.name}: Closed with messages still in queue, reconnecting in ${reconnectIntervalMillis}ms...`);
+        logger.info(
+          `${this.name}: Closed with messages still in queue, reconnecting in ${reconnectIntervalMillis}ms...`,
+        );
         setTimeout(() => this.setUp(), reconnectIntervalMillis);
         await this.callbacks.onErroneousDisconnect?.('Closed with messages still in queue');
       } else if (this.queue.numUnackMessages) {
@@ -361,7 +363,9 @@ export default class QWebSocket {
       const [idx, data] = this.queue.consume();
       logger.debug(`${this.name}: Sending chunk ${idx} of size ${data.size}`);
       this.wws.sendRaw(data);
-      logger.debug(`${this.name}: MQ decreased to size ${this.queue.numUnsentMessages} messages / ${this.queue.numUnsentBytes} bytes`);
+      logger.debug(
+        `${this.name}: MQ decreased to size ${this.queue.numUnsentMessages} messages / ${this.queue.numUnsentBytes} bytes`,
+      );
       this.flush();
     } else {
       logger.debug(`${this.name}: Flushing complete, no ws messages backed up`);
@@ -377,7 +381,11 @@ export default class QWebSocket {
     return this.sendToRoute(undefined, body, extraHeaders);
   }
 
-  sendToRoute(route: string, body: Binary | Record<string, unknown>, extraHeaders: QwsMessageExtraHeaders = {}): number {
+  sendToRoute(
+    route: string,
+    body: Binary | Record<string, unknown>,
+    extraHeaders: QwsMessageExtraHeaders = {},
+  ): number {
     // encode into payload message based on body type
     let message: PayloadQwsMessage;
 

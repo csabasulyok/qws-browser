@@ -1,46 +1,53 @@
 {
   "compilerOptions": {
-    "target": "ES2015",
+    "allowJs": false,
+    "alwaysStrict": true,
+    "allowSyntheticDefaultImports": true,
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "emitDeclarationOnly": false,
+    "emitDecoratorMetadata": true,
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "forceConsistentCasingInFileNames": true,
+    "importHelpers": false,
+    "incremental": true,
+    "isolatedModules": false,
     "lib": [
-      "ES2019",
+      "ScriptHost",
+      "ES2020",
       "DOM"
     ],
     "module": "CommonJS",
-    "sourceMap": true,
-    "rootDir": ".",
-    "outDir": "./dist",
-    "declaration": true,
-    "composite": true,
-    "removeComments": false,
-
-    /* Strict Type-Checking Options */
-    "strict": false,
-    "strictFunctionTypes": true,
-    "strictBindCallApply": true,
+    "moduleResolution": "node",
+    "noEmit": false,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitAny": false,
+    "noImplicitReturns": true,
     "noImplicitThis": true,
-    "alwaysStrict": true,
-
-    /* Additional Checks */
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": true,
-
-    /* Module Resolution Options */
-    "esModuleInterop": true,
-
-    /* Experimental Options */
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-
-    /* Advanced Options */
+    "outDir": "./dist",
+    "pretty": true,
+    "removeComments": false,
+    "rootDir": ".",
+    "resolveJsonModule": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "sourceMap": true,
+    "strict": false,
+    "strictBindCallApply": true,
+    "strictFunctionTypes": true,
+    "strictNullChecks": false,
+    "strictPropertyInitialization": false,
+    "stripInternal": true,
+    "target": "ES2019",
+    "useDefineForClassFields": false
   },
   "include": [
     "src/**/*.ts",
     "examples/**/*.ts",
-    "typings.d.ts",
+    "typings.d.ts"
   ],
   "exclude": [
     "node_modules"

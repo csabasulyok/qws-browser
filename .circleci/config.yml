@@ -5,22 +5,22 @@ jobs:
   lint:
     working_directory: ~/repo
     docker:
-      - image: csabasulyok/pnpm:14.17.6-alpine
+      - image: csabasulyok/pnpm:16.17.0-alpine
     steps:
       - checkout
 
       - restore_cache:
           keys:
-          - v1-dependencies-{{ checksum "package.json" }}
-          # fallback to using the latest cache if no exact match is found
-          - v1-dependencies-
+            - v1-dependencies-{{ checksum "package.json" }}
+            # fallback to using the latest cache if no exact match is found
+            - v1-dependencies-
 
       - run:
           name: Install dependencies
           command: pnpm i
       - run:
-          name: Run linters
-          command: pnpm lint
+          name: Run linters & compile
+          command: pnpm ci
 
       - save_cache:
           paths:
@@ -30,21 +30,21 @@ jobs:
       - persist_to_workspace:
           root: ~/repo
           paths:
-            - "."
-  
+            - '.'
+
   # Publish job
   publish:
     working_directory: ~/repo
     docker:
-      - image: csabasulyok/pnpm:14.17.6-alpine
+      - image: csabasulyok/pnpm:16.17.0-alpine
     steps:
       - checkout
 
       - restore_cache:
           keys:
-          - v1-dependencies-{{ checksum "package.json" }}
-          # fallback to using the latest cache if no exact match is found
-          - v1-dependencies-
+            - v1-dependencies-{{ checksum "package.json" }}
+            # fallback to using the latest cache if no exact match is found
+            - v1-dependencies-
 
       - run:
           name: Install dependencies
@@ -54,7 +54,7 @@ jobs:
           command: pnpm build
       - run:
           name: Publish to registry
-          command: pnpm publish
+          command: pnpm publish:npmjs
 
       - save_cache:
           paths:
@@ -64,8 +64,8 @@ jobs:
       - persist_to_workspace:
           root: ~/repo
           paths:
-            - "."
-  
+            - '.'
+
 workflows:
   lint:
     jobs:
@@ -78,5 +78,3 @@ workflows:
               only: /^v.*/
             branches:
               ignore: /.*/
-
-              
