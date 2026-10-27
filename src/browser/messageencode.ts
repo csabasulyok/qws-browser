@@ -1,5 +1,5 @@
-import logger from '../common/logger';
-import { QwsMessage, BinaryQwsMessage, JsonQwsMessage } from '../common/message';
+import logger from '../common/logger.js';
+import { QwsMessage, BinaryQwsMessage, JsonQwsMessage } from '../common/message.js';
 
 /**
  * Converts generic object into base64-encoded JSON.
@@ -7,7 +7,9 @@ import { QwsMessage, BinaryQwsMessage, JsonQwsMessage } from '../common/message'
  */
 function objectToJsonBinary(object: Record<string, unknown>): string {
   const objectJson = JSON.stringify(object);
-  return btoa(unescape(encodeURIComponent(objectJson)));
+  // base64 of the UTF-8 bytes, same as Buffer.from(json).toString('base64') on Node.js
+  const bytes = new TextEncoder().encode(objectJson);
+  return btoa(Array.from(bytes, (byte) => String.fromCodePoint(byte)).join(''));
 }
 
 /**
@@ -16,8 +18,9 @@ function objectToJsonBinary(object: Record<string, unknown>): string {
  */
 async function jsonBinaryToObject(jsonBinary: Blob): Promise<Record<string, unknown>> {
   const jsonBinaryText = await jsonBinary.text();
-  const objectJson = decodeURIComponent(escape(atob(jsonBinaryText)));
-  return JSON.parse(objectJson);
+  const bytes = Uint8Array.from(atob(jsonBinaryText), (char) => char.codePointAt(0)!);
+  const objectJson = new TextDecoder().decode(bytes);
+  return JSON.parse(objectJson) as Record<string, unknown>;
 }
 
 /**
@@ -30,7 +33,7 @@ export async function deserializeMessage(blob: Blob): Promise<QwsMessage> {
     return {
       headers: { type: 'bin' },
       body: blob,
-    } as BinaryQwsMessage;
+    };
   }
 
   // take first 4 bytes from header, check if not a too large size
@@ -42,7 +45,7 @@ export async function deserializeMessage(blob: Blob): Promise<QwsMessage> {
     return {
       headers: { type: 'bin' },
       body: blob,
-    } as BinaryQwsMessage;
+    };
   }
 
   try {
@@ -52,24 +55,26 @@ export async function deserializeMessage(blob: Blob): Promise<QwsMessage> {
     const type = headers.type || 'bin';
 
     // body is either JSON Blob, original binary data or nothing
-    let body: Blob | Record<string, unknown>;
+    let body: Blob | Record<string, unknown> | undefined;
     switch (type) {
-      case 'bin':
+      case 'bin': {
         body = bodyBlob;
         break;
-      case 'json':
+      }
+      case 'json': {
         body = await jsonBinaryToObject(bodyBlob);
         break;
+      }
       default:
     }
 
     return { headers, body } as QwsMessage;
-  } catch (ex) {
-    logger.error('Could not decode message', ex);
+  } catch (error) {
+    logger.error('Could not decode message', error);
     return {
       headers: { type: 'bin' },
       body: blob,
-    } as BinaryQwsMessage;
+    };
   }
 }
 
@@ -82,22 +87,29 @@ export function serializeMessage(message: QwsMessage): Blob {
   const headersSize = Uint32Array.from([headersEncoded.length]);
 
   // body is either JSON Blob, original binary data or nothing
-  let bodyEncoded: Blob | string;
+  let bodyEncoded: Blob | string | undefined;
   switch (message.headers.type) {
-    case 'bin':
+    case 'bin': {
       bodyEncoded = (message as BinaryQwsMessage).body;
       break;
-    case 'json':
+    }
+    case 'json': {
       bodyEncoded = objectToJsonBinary((message as JsonQwsMessage).body);
       break;
-    default:
+    }
+    case 'ready':
+    case 'ack':
+    case 'err': {
+      // no body
+      break;
+    }
   }
 
   return new Blob(
     [
       headersSize, // first 4 bytes = uint32 how long is header section
       headersEncoded, // headers in base64(json) format
-      bodyEncoded, // binary, json or null body
+      ...(bodyEncoded === undefined ? [] : [bodyEncoded]), // binary, json or no body
     ],
     { type: 'application/octet-stream' },
   );

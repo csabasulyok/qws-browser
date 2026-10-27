@@ -1,6 +1,6 @@
-import { PayloadQwsMessage } from './message';
-import { serializeMessage } from '../browser/messageencode';
-import { Binary } from './discriminator';
+import { PayloadQwsMessage } from './message.js';
+import { serializeMessage } from '../browser/messageencode.js';
+import { Binary } from './discriminator.js';
 
 /**
  * FIFO data structure implementation for outgoing qws messages
@@ -8,7 +8,7 @@ import { Binary } from './discriminator';
  * but new messages may be added while waiting for ack.
  */
 export default class QwsMessageQueue {
-  messages: Record<number, Binary>;
+  messages: Map<number, Binary>;
   readIdx: number;
   ackIdx: number;
   writeIdx: number;
@@ -19,7 +19,7 @@ export default class QwsMessageQueue {
   numUnackBytes: number;
 
   constructor() {
-    this.messages = {};
+    this.messages = new Map();
     this.readIdx = 0;
     this.ackIdx = 0;
     this.writeIdx = 0;
@@ -37,7 +37,7 @@ export default class QwsMessageQueue {
     const idx = this.writeIdx;
     message.headers.idx = idx;
     const data = serializeMessage(message);
-    this.messages[idx] = data;
+    this.messages.set(idx, data);
 
     this.numUnsentMessages += 1;
     this.numUnsentBytes += data.size;
@@ -54,7 +54,7 @@ export default class QwsMessageQueue {
    */
   consume(): [number, Binary] {
     const idx = this.readIdx;
-    const ret = this.messages[idx];
+    const ret = this.messages.get(idx)!;
 
     this.numUnsentMessages -= 1;
     this.numUnsentBytes -= ret.size;
@@ -68,8 +68,8 @@ export default class QwsMessageQueue {
   acknowledge(idx: number): void {
     while (this.ackIdx <= idx) {
       this.numUnackMessages -= 1;
-      this.numUnackBytes -= this.messages[this.ackIdx].size;
-      delete this.messages[this.ackIdx];
+      this.numUnackBytes -= this.messages.get(this.ackIdx)!.size;
+      this.messages.delete(this.ackIdx);
       this.ackIdx += 1;
     }
   }
@@ -81,7 +81,7 @@ export default class QwsMessageQueue {
     while (this.readIdx > idx) {
       this.readIdx -= 1;
       this.numUnsentMessages += 1;
-      this.numUnsentBytes += this.messages[this.readIdx].size;
+      this.numUnsentBytes += this.messages.get(this.readIdx)!.size;
     }
   }
 }

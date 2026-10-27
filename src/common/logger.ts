@@ -1,15 +1,14 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import autoBind from 'auto-bind';
 
 /**
  * Pluggable logger interface
  */
-export interface QwsLogger {
-  debug(...data: any[]): void;
-  info(...data: any[]): void;
-  warn(...data: any[]): void;
-  error(...data: any[]): void;
-}
+export type QwsLogger = {
+  debug(...data: unknown[]): void;
+  info(...data: unknown[]): void;
+  warn(...data: unknown[]): void;
+  error(...data: unknown[]): void;
+};
 
 export class QwsLoggerWrapper implements QwsLogger {
   backend: QwsLogger;
@@ -19,19 +18,19 @@ export class QwsLoggerWrapper implements QwsLogger {
     autoBind(this);
   }
 
-  debug(...data: any[]): void {
+  debug(...data: unknown[]): void {
     this.backend.debug(...data);
   }
 
-  info(...data: any[]): void {
+  info(...data: unknown[]): void {
     this.backend.info(...data);
   }
 
-  warn(...data: any[]): void {
+  warn(...data: unknown[]): void {
     this.backend.warn(...data);
   }
 
-  error(...data: any[]): void {
+  error(...data: unknown[]): void {
     this.backend.error(...data);
   }
 
@@ -53,4 +52,6 @@ export default logger;
 /**
  * Export setBackend method for easy external setup
  */
-export const setQwsLoggingBackend = logger.setBackend;
+export const setQwsLoggingBackend = (newBackend: QwsLogger): void => {
+  logger.setBackend(newBackend);
+};

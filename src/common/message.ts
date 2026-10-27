@@ -5,7 +5,7 @@
  * - remaining bytes: actual body - could be binary or base64(json), denoted in headers
  */
 
-import { Binary } from './discriminator';
+import { Binary } from './discriminator.js';
 
 /**
  * Denotes message type, must be included in header.
@@ -20,22 +20,14 @@ export type QwsMessageType = 'bin' | 'json' | 'ready' | 'ack' | 'err';
 /**
  * Headers are sent in base64(json) format.
  */
-export type QwsMessageExtraHeaders = {
-  /**
-   * Other X-headers
-   */
-  [key: string]: unknown;
-};
+// other X-headers
+export type QwsMessageExtraHeaders = Record<string, unknown>;
 
 /**
  * Path parameters decodable with route-recognizer when using routed messages.
  */
-export type QwsParams = {
-  /**
-   * Other X-headers
-   */
-  [key: string]: string;
-};
+// other X-headers
+export type QwsParams = Record<string, string>;
 
 /**
  * Message types

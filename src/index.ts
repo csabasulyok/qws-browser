@@ -1,8 +1,6 @@
-import QWebSocket from './common/queuews';
+export * from './common/logger.js';
+export * from './common/message.js';
+export * from './common/queuews.js';
+export * from './browser/messageencode.js';
 
-export * from './common/logger';
-export * from './common/message';
-export * from './common/queuews';
-export * from './browser/messageencode';
-
-export default QWebSocket;
+export { default } from './common/queuews.js';
