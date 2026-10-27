@@ -7,3 +7,6 @@ lib/
 
 # Ignore coverage
 coverage/
+
+# Ignore generated lockfile
+pnpm-lock.yaml
