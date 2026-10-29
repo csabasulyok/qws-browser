@@ -99,7 +99,9 @@ export function serializeMessage(message: QwsMessage): Blob {
     }
     case 'ready':
     case 'ack':
-    case 'err': {
+    case 'err':
+    case 'ping':
+    case 'pong': {
       // no body
       break;
     }

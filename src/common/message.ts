@@ -14,8 +14,10 @@ import { Binary } from './discriminator.js';
  * 'ready' - ready message sent after connection and setup
  * 'ack' - acknowledgment message for a payload message received from other side
  * 'err' - error
+ * 'ping' - heartbeat request, answered by a 'pong' from the other side
+ * 'pong' - heartbeat answer
  */
-export type QwsMessageType = 'bin' | 'json' | 'ready' | 'ack' | 'err';
+export type QwsMessageType = 'bin' | 'json' | 'ready' | 'ack' | 'err' | 'ping' | 'pong';
 
 /**
  * Headers are sent in base64(json) format.
@@ -132,13 +134,29 @@ export type ErrorQwsMessage = {
 };
 
 /**
+ * Heartbeat messages
+ * Used where protocol-level pings are not available (the browser).
+ * Peers that don't know these types ignore them.
+ */
+
+export type HeartbeatQwsMessageHeaders = {
+  type: 'ping' | 'pong';
+};
+
+export type HeartbeatQwsMessage = {
+  headers: HeartbeatQwsMessageHeaders;
+};
+
+/**
  * Common names for WSQ message
  */
 export type PayloadQwsMessage = BinaryQwsMessage | JsonQwsMessage;
-export type QwsMessage = BinaryQwsMessage | JsonQwsMessage | ReadyQwsMessage | AckQwsMessage | ErrorQwsMessage;
+export type QwsMessage =
+  BinaryQwsMessage | JsonQwsMessage | ReadyQwsMessage | AckQwsMessage | ErrorQwsMessage | HeartbeatQwsMessage;
 export type QwsMessageHeader =
   | BinaryQwsMessageHeaders
   | JsonQwsMessageHeaders
   | ReadyQwsMessageHeaders
   | AckQwsMessageHeaders
-  | ErrorQwsMessageHeaders;
+  | ErrorQwsMessageHeaders
+  | HeartbeatQwsMessageHeaders;

@@ -41,12 +41,17 @@ export type ReadyCallback = (headers?: ReadyQwsMessageHeaders) => void | Promise
 /**
  * Connection options
  */
-type QWebSocketOptions = {
+export type QWebSocketOptions = {
   name?: string;
   extraConnectArgs?: Record<string, unknown>;
   reconnect?: boolean;
   reconnectNumTries?: number;
   reconnectIntervalMillis?: number;
+  /**
+   * Interval of heartbeats detecting dead connections, 0 disables them.
+   * A connection is terminated if nothing arrives during a whole interval after a heartbeat.
+   */
+  heartbeatIntervalMillis?: number;
 };
 
 const defaultOpts: Partial<QWebSocketOptions> = {
@@ -54,6 +59,7 @@ const defaultOpts: Partial<QWebSocketOptions> = {
   reconnect: true,
   reconnectNumTries: 12,
   reconnectIntervalMillis: 5000,
+  heartbeatIntervalMillis: 25_000,
 };
 
 /**
@@ -69,6 +75,13 @@ export default class QWebSocket {
   needed: boolean;
   wws: WrappedWebSocket;
   ready: boolean;
+  closed: boolean;
+
+  heartbeatTimer?: ReturnType<typeof setInterval>;
+  heartbeatSentAt: number;
+  heartbeatConfirmed: boolean;
+
+  pendingAcks: Map<number, { resolve: () => void; reject: (error: Error) => void }>;
 
   callbacks: {
     onConnect?: ConnectCallback;
@@ -97,6 +110,10 @@ export default class QWebSocket {
     this.reconnectionAttempts = 0;
     this.needed = true;
     this.ready = false;
+    this.closed = false;
+    this.heartbeatSentAt = 0;
+    this.heartbeatConfirmed = false;
+    this.pendingAcks = new Map();
     autoBind(this);
 
     this.setUp();
@@ -159,6 +176,7 @@ export default class QWebSocket {
     if (reconnect && this.reconnectionAttempts > reconnectNumTries!) {
       logger.error(`${this.name}: Connection timed out, should re-connect entirely`);
       void this.callbacks.onError?.(`WS connection timeout, max tries (${reconnectNumTries}) exceeded`);
+      this.rejectPendingAcks();
       return;
     }
 
@@ -177,6 +195,15 @@ export default class QWebSocket {
       this.wws = new WrappedWebSocket(connectUrl);
     }
 
+    this.wws.onPing(() => {
+      this.wws.send({ headers: { type: 'pong' } });
+    });
+
+    this.wws.onPong(() => {
+      // peer knows qws heartbeats, missing answers may now be treated as a dead connection
+      this.heartbeatConfirmed = true;
+    });
+
     this.wws.onWsError(async (event) => {
       // ws error will prompt reconnection which can time out, don't reject instantly
       const message = decodeErrorMessage(event);
@@ -191,6 +218,7 @@ export default class QWebSocket {
 
     this.wws.onWsOpen(async () => {
       this.reconnectionAttempts = 0;
+      this.startHeartbeat();
       logger.info(
         reconnect
           ? `${this.name}: Connection established after ${this.reconnectionAttempts} tries`
@@ -225,7 +253,7 @@ export default class QWebSocket {
       logger.info(`${this.name}: Socket ready to send${readyIdx ? `from chunk ${readyIdx}` : ''}`);
       // if server sent chunk index to resume from, move queue cursors appropriately
       if (readyIdx !== undefined) {
-        this.queue.acknowledge(readyIdx - 1);
+        this.acknowledge(readyIdx - 1);
         this.queue.revert(readyIdx);
       }
       this.ready = true;
@@ -312,7 +340,7 @@ export default class QWebSocket {
 
     this.wws.onAck((message: AckQwsMessage) => {
       // acknowledgment received
-      this.queue.acknowledge(message.headers.ackIdx);
+      this.acknowledge(message.headers.ackIdx);
       if (!this.queue.numUnackMessages && !this.needed) {
         this.wws.close();
       }
@@ -325,6 +353,7 @@ export default class QWebSocket {
     });
 
     this.wws.onWsClose(async () => {
+      this.stopHeartbeat();
       if (reconnect && this.needed) {
         // if locally closed, needed should be false
         // if it's true, it means we lost the connection and should try to re-connect
@@ -343,12 +372,87 @@ export default class QWebSocket {
         logger.info(`${this.name}: Closed with messages still in queue`);
         await this.callbacks.onError?.('Closed with messages still in queue');
         await this.callbacks.onClose?.();
+        this.rejectPendingAcks();
       } else {
         // all is well
         logger.info(`${this.name}: Closed correctly`);
         await this.callbacks.onClose?.();
+        this.rejectPendingAcks();
       }
     });
+  }
+
+  /**
+   * Heartbeat: if nothing (not even its answer) arrived since the previous heartbeat,
+   * the connection is dead and is terminated, which triggers the usual close/reconnect logic.
+   * Checking per tick instead of measuring time since the last message
+   * tolerates throttled timers in background browser tabs.
+   */
+  private startHeartbeat(): void {
+    this.stopHeartbeat();
+    const { heartbeatIntervalMillis } = this.options;
+    if (!heartbeatIntervalMillis) {
+      return;
+    }
+
+    const { wws } = this;
+    this.heartbeatConfirmed = wws.heartbeatAnsweredByProtocol;
+    this.heartbeatSentAt = 0;
+
+    this.heartbeatTimer = setInterval(() => {
+      if (wws.readyState !== WebSocket.OPEN) {
+        return;
+      }
+      if (this.heartbeatConfirmed && this.heartbeatSentAt && wws.lastActivity < this.heartbeatSentAt) {
+        logger.warn(`${this.name}: No answer to heartbeat in ${heartbeatIntervalMillis}ms, terminating connection`);
+        this.stopHeartbeat();
+        wws.terminate();
+        return;
+      }
+      this.heartbeatSentAt = Date.now();
+      wws.sendHeartbeat();
+    }, heartbeatIntervalMillis);
+  }
+
+  private stopHeartbeat(): void {
+    clearInterval(this.heartbeatTimer);
+    this.heartbeatTimer = undefined;
+  }
+
+  /**
+   * Resolves once the other side acknowledged the message with the given index (returned by send/sendToRoute).
+   * Rejects if the connection is closed for good before that.
+   * Reconnecting connections keep and resend their unacknowledged messages, so they don't reject on reconnect.
+   */
+  waitForAck(idx: number): Promise<void> {
+    if (idx < this.queue.ackIdx) {
+      return Promise.resolve();
+    }
+    if (this.closed) {
+      return Promise.reject(new Error(`${this.name}: Connection closed, message ${idx} will not be acknowledged`));
+    }
+    return new Promise((resolve, reject) => {
+      this.pendingAcks.set(idx, { resolve, reject });
+    });
+  }
+
+  private acknowledge(idx: number): void {
+    this.queue.acknowledge(idx);
+    for (const [pendingIdx, { resolve }] of this.pendingAcks) {
+      if (pendingIdx > idx) {
+        continue;
+      }
+      this.pendingAcks.delete(pendingIdx);
+      resolve();
+    }
+  }
+
+  private rejectPendingAcks(): void {
+    this.closed = true;
+    for (const [idx, { reject }] of this.pendingAcks) {
+      reject(new Error(`${this.name}: Connection closed, message ${idx} will not be acknowledged`));
+    }
+    this.pendingAcks.clear();
   }
 
   flush(): void {
